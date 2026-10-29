@@ -39,6 +39,7 @@ function renderList(){
  $('totalCount').textContent='총 '+count+'건  |  게시 예정 '+scheduled+' · 전달 준비 완료 '+ready;
  $('rows').innerHTML=visible.length?visible.map((r,i)=>'<tr><td><input type="checkbox" class="row-check" data-slug="'+esc(r.slug)+'" aria-label="'+esc(r.title)+' 선택" '+(state.selected.has(r.slug)?'checked':'')+'></td><td>'+(count-(state.page-1)*size-i)+'</td><td><span class="thumb">'+esc(r.category)+'<br>등기 가이드</span></td><td>'+esc(r.category.replace(' 변경','').replace(' 이전',''))+'</td><td><button class="article-title" data-open="'+esc(r.slug)+'">'+esc(r.title)+'</button><div class="small muted">'+esc(r.slug)+'</div></td><td>'+r.tags.slice(0,3).map(t=>'<span class="tag">'+esc(t)+'</span>').join('')+'</td><td><span class="badge '+esc(r.status)+'">'+STATUS[r.status]+'</span></td><td>'+(r.history?.length?'<span style="color:#3866c8">있음</span>':'-')+'</td><td>'+dateTime(r.scheduledAt)+'</td><td>'+dateTime(r.updatedAt)+'</td><td>'+esc(r.updatedBy||r.author)+'</td><td><button data-open="'+esc(r.slug)+'">상세</button></td></tr>').join(''):'<tr><td colspan="12" class="empty">조건에 맞는 콘텐츠가 없습니다.</td></tr>';
  $('selectedCount').textContent=state.selected.size+'건 선택';
+ if($('deleteSelected'))$('deleteSelected').disabled=deletingSelected||state.selected.size===0;
  $('selectAll').checked=visible.length>0&&visible.every(x=>state.selected.has(x.slug));
  $('selectAll').indeterminate=visible.some(x=>state.selected.has(x.slug))&&!$('selectAll').checked;
  $('pagination').innerHTML='<button data-page="'+(state.page-1)+'" '+(state.page===1?'disabled':'')+' aria-label="이전 페이지">‹</button>'+Array.from({length:pages},(_,i)=>i+1).filter(p=>Math.abs(p-state.page)<3||p===1||p===pages).map(p=>'<button data-page="'+p+'" class="'+(p===state.page?'current':'')+'">'+p+'</button>').join('')+'<button data-page="'+(state.page+1)+'" '+(state.page===pages?'disabled':'')+' aria-label="다음 페이지">›</button>';
@@ -192,5 +193,32 @@ async function showTrash(){const r=await api('list',null,{trash:'1'});$('trashRo
 $('trashButton').onclick=guard(async()=>{if(!ensureLeave())return;await showTrash();});
 $('closeTrash').onclick=()=>$('trashDialog').close();
 $('trashRows').onclick=guard(async e=>{const b=e.target.closest('[data-restore-trash]');if(!b)return;await api('restore',{slug:b.dataset.restoreTrash,expectedRevision:b.dataset.revision});await showTrash();await loadItems();toast('콘텐츠를 복원했습니다.');});
+
+let deletingSelected=false;
+const deleteSelected=document.createElement('button');
+deleteSelected.id='deleteSelected';
+deleteSelected.type='button';
+deleteSelected.className='danger';
+deleteSelected.textContent='선택 삭제';
+deleteSelected.disabled=true;
+$('privateSelected').after(deleteSelected);
+deleteSelected.onclick=guard(async()=>{
+ if(deletingSelected)return;
+ const records=state.items.filter(r=>state.selected.has(r.slug));
+ if(!records.length){toast('삭제할 콘텐츠를 선택해 주세요.');return;}
+ if(!confirm('선택한 '+records.length+'편을 휴지통으로 이동하시겠습니까?\n휴지통에서 복원할 수 있습니다.'))return;
+ deletingSelected=true;deleteSelected.disabled=true;deleteSelected.textContent='삭제 중…';
+ let success=0;const failures=[];
+ try{
+  for(const record of records){
+   try{await api('delete',{slug:record.slug,expectedRevision:record.revision});state.selected.delete(record.slug);success++;}
+   catch(e){failures.push(record.title+': '+e.message);}
+  }
+  try{await loadItems();}catch(e){failures.push('목록 새로고침 실패: '+e.message);}
+  toast(success+'편을 휴지통으로 이동했습니다.'+(failures.length?' 일부 작업에 실패했습니다.':''));
+  if(failures.length)alert(failures.join('\n'));
+ }finally{deletingSelected=false;deleteSelected.textContent='선택 삭제';deleteSelected.disabled=state.selected.size===0;}
+});
+
 (async()=>{syncSelects();try{const r=await api('session');state.user=r.user;showWorkspace();await loadItems();}catch(e){showLogin();if(e.status!==401)$('loginError').textContent=e.message;}})();
 
