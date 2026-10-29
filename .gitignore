@@ -147,3 +147,7 @@ vite.config.ts.timestamp-*
 
 # Turbo Repo
 .turbo
+
+# QRATOR
+public/vendor/jszip.min.js
+.vercel/

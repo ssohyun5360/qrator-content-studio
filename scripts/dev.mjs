@@ -1,0 +1,6 @@
+import http from 'node:http';
+import {readFile} from 'node:fs/promises';
+import {resolve,extname} from 'node:path';
+import handler from '../api/studio.js';
+const root=resolve('public');
+http.createServer(async(req,res)=>{const url=new URL(req.url,'http://localhost:3000');if(url.pathname==='/api/studio'){let raw='';for await(const chunk of req){raw+=chunk;if(raw.length>3_010_000){res.writeHead(413);res.end();return;}}req.query=Object.fromEntries(url.searchParams);req.body=raw||{};res.status=c=>{res.statusCode=c;return res;};res.json=d=>{res.setHeader('Content-Type','application/json');res.end(JSON.stringify(d));};return handler(req,res);}const file=resolve(root,'.'+decodeURIComponent(url.pathname==='/'?'/index.html':url.pathname));if(!file.startsWith(root+'/')){res.writeHead(403);return res.end();}try{const data=await readFile(file);res.setHeader('Content-Type',({'.html':'text/html','.css':'text/css','.mjs':'text/javascript','.js':'text/javascript'})[extname(file)]||'application/octet-stream');res.end(data);}catch{res.writeHead(404);res.end();}}).listen(3000,()=>console.log('http://localhost:3000 — configuration-free preview shows setup message. Use HTTPS for authenticated testing.'));
