@@ -40,5 +40,5 @@ export default async function handler(req,res){
    const next={...current.value,deletedAt:op==='delete'?new Date().toISOString():null};await write(key,next,current.etag);return send(200,{ok:true});
   }
   fail(400,'지원하지 않는 요청입니다.');
- }catch(e){if([409,412].includes(e.$metadata?.httpStatusCode))return send(409,{error:'동시에 변경된 내용이 있습니다. 다시 시도해 주세요.'});if(e.status)return send(e.status,{error:e.message});console.error('Studio request failed',e.name);return send(503,{error:'저장소에 연결할 수 없습니다. AWS 연결 정보와 권한을 확인해 주세요.'});}
+ }catch(e){if([409,412].includes(e.$metadata?.httpStatusCode))return send(409,{error:'동시에 변경된 내용이 있습니다. 다시 시도해 주세요.'});if(e.status)return send(e.status,{error:e.message});console.error('Studio request failed',e.name,{code:typeof e.code==='string'?e.code.replace(/[^A-Z_0-9]/g,'').slice(0,60):undefined,frames:String(e.stack||'').split('\n').filter(line=>/^\s+at /.test(line)).slice(0,6)});return send(503,{error:'저장소에 연결할 수 없습니다. AWS 연결 정보와 권한을 확인해 주세요.'});}
 }
