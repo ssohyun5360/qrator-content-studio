@@ -1,0 +1,33 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {authenticated,session,validate,nextRecord,path} from '../lib/core.mjs';
+import {S3Client} from '@aws-sdk/client-s3';
+const env={STUDIO_PASSWORD:'test-password-123456789',SESSION_SECRET:'x'.repeat(40),AWS_REGION:'ap-northeast-2',S3_BUCKET:'test-bucket',APP_ORIGIN:'https://studio.example'};
+Object.assign(process.env,env);
+const record={slug:'head-office',title:'본점 이전',category:'본점 이전',html:'<h1>본점 이전</h1>',assets:[],status:'draft',author:'작성자'};
+test('session rejects altered, expired and password-rotated cookies',()=>{const token=session(env,1000);assert.ok(authenticated('studio_session='+token,env,2000));assert.equal(authenticated('studio_session='+token+'x',env,2000),false);assert.equal(authenticated('studio_session='+token,env,50_000_000),false);assert.equal(authenticated('studio_session='+token,{...env,STUDIO_PASSWORD:'changed'},2000),false);});
+test('rejects traversal, duplicate assets, invalid status and excess HTML',()=>{assert.throws(()=>path('../secret'));assert.throws(()=>validate({...record,status:'unknown'}));assert.throws(()=>validate({...record,html:'a'.repeat(2_000_001)}));assert.throws(()=>validate({...record,assets:[{path:'index.html',base64:''}]}));});
+test('concurrent edit refuses stale revision and preserves trusted history',()=>{const first=nextRecord(record,null,null);const next=nextRecord({...record,history:[{revision:'fake'}]},first,first.revision);assert.equal(next.history.length,1);assert.equal(next.history[0].revision,first.revision);assert.throws(()=>nextRecord(record,first,'stale'),{status:409});assert.throws(()=>nextRecord(record,{...first,deletedAt:'now'},first.revision),{status:409});});
+const store=new Map();let counter=0;
+S3Client.prototype.send=async function(command){const p=command.input;switch(command.constructor.name){case 'GetObjectCommand':{const r=store.get(p.Key);if(!r)throw Object.assign(new Error(),{name:'NoSuchKey'});return {ETag:r.etag,Body:{transformToString:async()=>r.body}};}case 'PutObjectCommand':{const old=store.get(p.Key);if((p.IfNoneMatch&&old)||(p.IfMatch&&old?.etag!==p.IfMatch))throw {$metadata:{httpStatusCode:412}};store.set(p.Key,{etag:String(++counter),body:p.Body});return {};}case 'ListObjectsV2Command':return {Contents:[...store.keys()].filter(k=>k.startsWith(p.Prefix)).map(Key=>({Key}))};default:throw new Error(command.constructor.name);}};
+const {default:handler}=await import('../api/studio.js');
+async function call(op,{method='GET',body={},cookie='',origin=env.APP_ORIGIN,query={}}={}){const r={headers:{},setHeader(k,v){this.headers[k]=v;},status(c){this.code=c;return this;},json(d){this.data=d;return this;}};await handler({method,query:{op,...query},body,headers:{cookie,origin,'x-vercel-forwarded-for':'192.0.2.1'}},r);return r;}
+test('API authorization, CSRF, save/list/history/trash/restore workflow',async()=>{
+ assert.equal((await call('list')).code,401);
+ assert.equal((await call('login',{method:'POST',origin:'https://evil.example',body:{password:env.STUDIO_PASSWORD}})).code,403);
+ assert.equal((await call('login',{method:'POST',body:{password:'wrong'}})).code,401);
+ const login=await call('login',{method:'POST',body:{password:env.STUDIO_PASSWORD}});assert.equal(login.code,200);assert.match(login.headers['Set-Cookie'],/HttpOnly; Secure; SameSite=Strict/);const cookie=login.headers['Set-Cookie'];
+ const first=await call('save',{method:'POST',cookie,body:{record}});assert.equal(first.code,200);
+ const second=await call('save',{method:'POST',cookie,body:{record:{...record,title:'수정'},expectedRevision:first.data.revision}});assert.equal(second.code,200);
+ assert.equal((await call('save',{method:'POST',cookie,body:{record,expectedRevision:first.data.revision}})).code,409);
+ const old=await call('version',{cookie,query:{slug:record.slug,revision:first.data.revision}});assert.equal(old.data.title,record.title);
+ const listing=await call('list',{cookie});assert.equal(listing.data.items.length,1);assert.equal(listing.data.items[0].html,undefined);
+ assert.equal((await call('delete',{cookie,query:{slug:record.slug}})).code,405);
+ assert.equal((await call('delete',{method:'POST',cookie,body:{slug:record.slug,expectedRevision:second.data.revision}})).code,200);
+ assert.equal((await call('list',{cookie})).data.items.length,0);
+ assert.equal((await call('list',{cookie,query:{trash:'1'}})).data.items.length,1);
+ assert.equal((await call('restore',{method:'POST',cookie,body:{slug:record.slug,expectedRevision:second.data.revision}})).code,200);
+ assert.equal((await call('list',{cookie})).data.items.length,1);
+});
+test('login attempts limited in persistent store',async()=>{store.clear();for(let i=0;i<10;i++)assert.equal((await call('login',{method:'POST',body:{password:'wrong'}})).code,401);assert.equal((await call('login',{method:'POST',body:{password:'wrong'}})).code,429);});
+test('ZIP export preserves all selected articles and nested asset paths',async()=>{const {exportFolder}=await import('../public/client-helpers.mjs');const {default:JSZip}=await import('jszip');const r={...record,tags:[],entryPath:'nested/index.html',assets:[{path:'nested/assets/a.png',mime:'image/png',base64:'aGk='}]};const bytes=await exportFolder([r,{...r,slug:'director-change'}],JSZip);const zip=await JSZip.loadAsync(bytes);assert.ok(zip.file('qrator-guides/articles/head-office/source/nested/index.html'));assert.ok(zip.file('qrator-guides/articles/director-change/source/nested/assets/a.png'));const manifest=JSON.parse(await zip.file('qrator-guides/manifest.json').async('string'));assert.equal(manifest.count,2);assert.equal(await zip.file('qrator-guides/articles/head-office/source/nested/assets/a.png').async('string'),'hi');});
