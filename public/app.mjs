@@ -167,11 +167,12 @@ document.querySelectorAll('[data-insert]').forEach(b=>{b.onmousedown=e=>e.preven
  doc.execCommand('insertHTML',false,html);markDirty();
  };});
 $('assetInput').onchange=guard(async e=>{
- for(const file of e.target.files){if(file.size>2000000)throw new Error('첨부 파일은 2MB 이내로 올려 주세요.');const path='assets/'+file.name.replace(/[\\/:]/g,'-');
+ state.current=recordFromForm();
+ for(const file of e.target.files){if(file.size>2000000)throw new Error('첨부 파일은 2MB 이내로 올려 주세요.');const path=(state.current.entryPath.split('/').slice(0,-1).join('/')?state.current.entryPath.split('/').slice(0,-1).join('/')+'/':'')+'assets/'+file.name.replace(/[\\/:]/g,'-');
   const base64=await new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(reader.result.split(',')[1]);reader.onerror=reject;reader.readAsDataURL(file);});
   const asset={path,mime:file.type||mime(path),base64};const i=state.current.assets.findIndex(x=>x.path===path);
   if(i>=0){if(!confirm(path+' 파일을 교체하시겠습니까?'))continue;state.current.assets[i]=asset;}else state.current.assets.push(asset);
- }e.target.value='';renderAssets();markDirty();
+ }e.target.value='';renderAssets();if(state.mode==='visual')loadVisual();markDirty();
 });
 $('assetList').onclick=e=>{const b=e.target.closest('[data-asset-remove]');if(b){state.current.assets.splice(Number(b.dataset.assetRemove),1);renderAssets();markDirty();}};
 $('previewButton').onclick=guard(()=>{$('previewFrame').srcdoc=previewHTML(recordFromForm());$('previewFrame').style.maxWidth='100%';$('previewDialog').showModal();});
