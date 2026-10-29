@@ -19,8 +19,9 @@
 <p class="footnote">게시 예정 글은 이 공간에서 검토하며, 홈페이지 공개는 개발팀 전달 후 별도로 진행합니다.</p>
 </section>
 <section id="editorView" hidden>
+<div style="margin-bottom:16px"><button id="backToList" type="button">← 뒤로 가기 · 콘텐츠 목록</button></div>
 <div class="page-heading"><h1 id="editorTitle">등기 가이드 작성</h1><p>콘텐츠와 게시 정보를 입력한 후 미리보기로 노출 화면을 확인합니다.</p></div><div class="tabs"><span class="selected">등기 가이드</span></div>
-<div class="editor-actions"><div><strong id="saveState">작성 중</strong><div class="small muted" id="revisionInfo"></div></div><div class="spacer"></div><button id="backToList">목록</button><button id="historyButton">수정 이력</button><button id="previewButton">미리보기</button><button id="saveButton" class="primary">저장</button></div>
+<div class="editor-actions"><div><strong id="saveState">작성 중</strong><div class="small muted" id="revisionInfo"></div></div><div class="spacer"></div><button id="historyButton">수정 이력</button><button id="previewButton">미리보기</button><button id="saveButton" class="primary">저장</button></div>
 <form id="editorForm">
 <h2 class="section-label">기본 정보</h2><div class="form-table">
 <div class="form-row"><label for="editCategory">카테고리 <em>*</em></label><div><select id="editCategory" required></select><span class="hint">홈페이지 분류: 상호 / 본점 / 목적 / 임원 / 지점</span></div></div>
@@ -29,7 +30,7 @@
 <div class="form-row"><label for="editSummary">요약</label><div><textarea id="editSummary" rows="2" maxlength="200" class="wide" placeholder="콘텐츠를 설명하는 짧은 문장"></textarea></div></div>
 <div class="form-row"><label for="editSlug">상세 주소 <em>*</em></label><div><span class="muted">/blog/</span><input id="editSlug" class="slug-input" required pattern="[a-z0-9]+(-[a-z0-9]+)*" placeholder="english-slug"><span id="slugHint" class="hint"></span></div></div>
 <div class="form-row"><label for="editTags">태그</label><div><input id="editTags" class="wide" placeholder="쉼표로 구분하여 입력"></div></div>
-<div class="form-row"><label for="assetInput">대표 이미지·첨부</label><div class="asset-cell"><input id="assetInput" type="file" accept="image/*,.css,.woff,.woff2,.ttf" multiple><div id="assetList" class="asset-list"></div><span class="hint">본문에서 사용할 파일을 추가합니다. 콘텐츠와 첨부 합계 약 2MB 이내</span></div></div>
+<div class="form-row"><label for="assetInput">대표 이미지·첨부</label><div class="asset-cell"><input id="assetInput" type="file" accept="image/*,.css,.woff,.woff2,.ttf" multiple><div id="assetList" class="asset-list"></div><span class="hint">HTML만 가져오면 별도 이미지 파일은 포함되지 않습니다. 원본 HTML과 이미지 폴더를 함께 ZIP으로 가져오세요. 첨부 파일은 본문의 이미지 경로와 일치해야 합니다.</span></div></div>
 </div>
 <h2 class="section-label">게시·노출 설정</h2><div class="form-table"><div class="form-row"><label for="editStatus">게시 설정</label><div><select id="editStatus"></select><input id="editSchedule" type="datetime-local" aria-label="게시 예정 일시"><span class="hint">한국 시간(KST) · 공개 여부는 검토 상태로만 관리</span></div></div></div>
 <h2 class="section-label">본문</h2>
