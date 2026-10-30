@@ -76,7 +76,7 @@ function fillEditor(record){
  $('revisionInfo').textContent=record.updatedAt?dateTime(record.updatedAt)+' · '+(record.updatedBy||record.author):'';
  $('editBy').textContent='현재 편집자: '+state.user.name;$('deleteButton').hidden=!record.revision;$('historyButton').disabled=!record.history?.length;
  $('visualEditor').hidden=false;$('htmlEditor').hidden=true;document.querySelectorAll('[data-mode]').forEach(b=>b.classList.toggle('mode-active',b.dataset.mode==='visual'));
- renderAssets();loadVisual();window.scrollTo(0,0);
+ renderAssets();loadVisual();window.scrollTo(0,0);refreshGithubStatus();
 }
 async function openRecord(slug){if(!ensureLeave())return;const r=await api('get',null,{slug});fillEditor(r);}
 function newRecord(){
@@ -220,6 +220,31 @@ deleteSelected.onclick=guard(async()=>{
   if(failures.length)alert(failures.join('\n'));
  }finally{deletingSelected=false;deleteSelected.textContent='선택 삭제';deleteSelected.disabled=state.selected.size===0;}
 });
+
+
+const githubCurrent=document.createElement('button');githubCurrent.type='button';githubCurrent.textContent='GitHub에 저장';$('saveButton').before(githubCurrent);
+const githubSelected=document.createElement('button');githubSelected.textContent='선택 글 GitHub에 저장';$('downloadSelected').after(githubSelected);
+const githubStatus=document.createElement('div');githubStatus.className='small muted';$('revisionInfo').after(githubStatus);
+async function githubRequest(slug,revision){
+ const response=await fetch('/api/github?slug='+encodeURIComponent(slug),{method:revision?'POST':'GET',credentials:'same-origin',headers:revision?{'Content-Type':'application/json'}:{},body:revision?JSON.stringify({revision}):undefined});
+ const result=await response.json();if(!response.ok)throw new Error(result.error||'GitHub 요청 실패');return result;
+}
+async function refreshGithubStatus(){
+ const record=state.current;if(!record?.revision){githubStatus.textContent='사이트에 먼저 저장해 주세요.';return;}
+ githubStatus.textContent='GitHub 저장 상태 확인 중…';
+ try{const {sync}=await githubRequest(record.slug);if(state.current!==record)return;githubStatus.textContent=sync?(sync.revision===record.revision?'GitHub 저장 완료':'최신 수정사항 미반영')+' · '+dateTime(sync.savedAt):'GitHub에 저장하지 않은 글';}catch(e){if(state.current===record)githubStatus.textContent=e.message;}
+}
+let githubBusy=false;
+async function exportGithub(records){
+ if(githubBusy)return;if(!records.length){toast('콘텐츠를 선택해 주세요.');return;}
+ if(!confirm(records.length+'편의 저장된 HTML과 첨부 파일을 GitHub에 저장하시겠습니까?'))return;
+ githubBusy=true;githubCurrent.disabled=githubSelected.disabled=true;let success=0;const failures=[];
+ try{for(const r of records){try{const result=await githubRequest(r.slug,r.revision);success++;if(result.warning)failures.push(result.warning);}catch(e){failures.push(r.title+': '+e.message);}}
+ toast(success+'편 GitHub 저장 완료');if(failures.length)alert(failures.join('\n'));if(state.current)await refreshGithubStatus();
+ }finally{githubBusy=false;githubCurrent.disabled=githubSelected.disabled=false;}
+}
+githubCurrent.onclick=guard(async()=>{if(state.dirty||!state.current?.revision){toast('변경사항을 사이트에 먼저 저장한 뒤 다시 열어 주세요.');return;}await exportGithub([state.current]);});
+githubSelected.onclick=guard(()=>exportGithub(state.items.filter(r=>state.selected.has(r.slug))));
 
 (async()=>{syncSelects();try{const r=await api('session');state.user=r.user;showWorkspace();await loadItems();}catch(e){showLogin();if(e.status!==401)$('loginError').textContent=e.message;}})();
 
