@@ -31,7 +31,30 @@ export async function readArchive(file,Zip){
   else assets.push({path,base64:await entry.async('base64'),mime:mime(path)});
  }
  if(!htmlFiles.length)throw new Error('ZIP 안에 HTML 파일이 없습니다.');
- return htmlFiles.map(x=>({...metadataFromHTML(x.html,x.entryPath),...x,assets}));
+ const assetsByPath=new Map(assets.map(asset=>[asset.path,asset]));
+ function assetsForHTML(item){
+  const included=new Map();
+  function addReference(from,reference){
+   const path=resolveAsset(from,String(reference||'').trim());
+   const asset=path&&assetsByPath.get(path);
+   if(!asset||included.has(path))return;
+   included.set(path,asset);
+   if(asset.mime==='text/css'){
+    const css=new TextDecoder().decode(Uint8Array.from(atob(asset.base64),c=>c.charCodeAt(0)));
+    for(const match of css.matchAll(/url\(\s*(['"]?)(.*?)\1\s*\)/gi))addReference(asset.path,match[2]);
+    for(const match of css.matchAll(/@import\s+(?:url\(\s*)?(['"])(.*?)\1\s*\)?/gi))addReference(asset.path,match[2]);
+   }
+  }
+  const doc=new DOMParser().parseFromString(item.html,'text/html');
+  for(const node of doc.querySelectorAll('[src],[href],[poster],[srcset],[style]')){
+   for(const attr of ['src','href','poster'])if(node.hasAttribute(attr))addReference(item.entryPath,node.getAttribute(attr));
+   if(node.hasAttribute('srcset'))for(const part of node.getAttribute('srcset').split(','))addReference(item.entryPath,part.trim().split(/\s+/)[0]);
+   if(node.hasAttribute('style'))for(const match of node.getAttribute('style').matchAll(/url\(\s*(['"]?)(.*?)\1\s*\)/gi))addReference(item.entryPath,match[2]);
+  }
+  for(const style of doc.querySelectorAll('style'))for(const match of style.textContent.matchAll(/url\(\s*(['"]?)(.*?)\1\s*\)/gi))addReference(item.entryPath,match[2]);
+  return [...included.values()];
+ }
+ return htmlFiles.map(x=>({...metadataFromHTML(x.html,x.entryPath),...x,assets:assetsForHTML(x)}));
 }
 export function mime(path){const ext=path.split('.').pop().toLowerCase();return {png:'image/png',jpg:'image/jpeg',jpeg:'image/jpeg',webp:'image/webp',gif:'image/gif',svg:'image/svg+xml',css:'text/css',woff:'font/woff',woff2:'font/woff2',ttf:'font/ttf'}[ext]||'application/octet-stream';}
 export function previewHTML(record){
