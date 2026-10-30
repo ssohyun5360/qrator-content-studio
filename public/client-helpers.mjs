@@ -1,5 +1,6 @@
 export const CATEGORIES=['상호 변경','본점 이전','목적 변경','임원 변경','지점 변경'];
 export const STATUS={scheduled:'게시 예정',draft:'작성 중',needs_changes:'수정 필요',ready:'전달 준비 완료',delivered:'전달 완료',private:'비공개'};
+export const REVIEW_STATUS={pending:'검토 전',in_review:'검토 중',needs_revision:'수정 필요',complete:'검토 완료'};
 export function esc(value){return String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 export function safeArchivePath(value){if(typeof value!=='string'||value.length>240||value.startsWith('/')||/[\x00-\x1f\\:]/.test(value)||value.split('/').some(p=>!p||p==='.'||p==='..'))throw new Error('안전하지 않은 ZIP 파일 경로입니다.');return value;}
 export function resolveAsset(entry,reference){
