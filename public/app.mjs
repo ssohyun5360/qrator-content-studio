@@ -190,9 +190,11 @@ window.addEventListener('beforeunload',e=>{if(state.dirty){e.preventDefault();e.
 $('selectFiltered').onclick=()=>{state.filtered.forEach(x=>state.selected.add(x.slug));renderList();};
 $('loginForm').onsubmit=async e=>{e.preventDefault();$('loginButton').disabled=true;$('loginError').textContent='';try{const r=await api('login',{password:$('teamPassword').value});$('teamPassword').value='';state.user=r.user;showWorkspace();await loadItems();}catch(e){$('loginError').textContent=e.message;}finally{$('loginButton').disabled=false;}};
 $('logoutButton').onclick=guard(async()=>{if(!ensureLeave())return;await api('logout',{});state.dirty=false;state.items=[];state.selected.clear();showLogin();});
-async function showTrash(){const r=await api('list',null,{trash:'1'});$('trashRows').innerHTML=r.items.map(x=>'<div class="history-row"><span>'+esc(x.title)+'</span><button data-restore-trash="'+esc(x.slug)+'" data-revision="'+esc(x.revision)+'">복원</button></div>').join('')||'<p>휴지통이 비어 있습니다.</p>';if(!$('trashDialog').open)$('trashDialog').showModal();}
+let trashItems=[];
+async function showTrash(){const r=await api('list',null,{trash:'1'});trashItems=r.items;$('emptyTrashButton').disabled=!trashItems.length;$('trashRows').innerHTML=trashItems.map(x=>'<div class="history-row"><span>'+esc(x.title)+'</span><button data-restore-trash="'+esc(x.slug)+'" data-revision="'+esc(x.revision)+'">복원</button></div>').join('')||'<p>휴지통이 비어 있습니다.</p>';if(!$('trashDialog').open)$('trashDialog').showModal();}
 $('trashButton').onclick=guard(async()=>{if(!ensureLeave())return;await showTrash();});
 $('closeTrash').onclick=()=>$('trashDialog').close();
+$('emptyTrashButton').onclick=guard(async()=>{const items=trashItems.map(x=>({slug:x.slug,revision:x.revision}));if(!items.length){toast('휴지통이 비어 있습니다.');return;}if(!confirm('휴지통의 '+items.length+'편과 수정 이력을 영구 삭제할까요? 삭제한 콘텐츠는 복원할 수 없습니다.'))return;const button=$('emptyTrashButton');button.disabled=true;try{const result=await api('emptyTrash',{items});await showTrash();await loadItems();alert(result.deleted+'편을 영구 삭제했습니다.'+(result.skipped?.length?'\\n'+result.skipped.length+'편은 변경되어 건너뛰었습니다.':''));}finally{button.disabled=!trashItems.length;}});
 $('trashRows').onclick=guard(async e=>{const b=e.target.closest('[data-restore-trash]');if(!b)return;await api('restore',{slug:b.dataset.restoreTrash,expectedRevision:b.dataset.revision});await showTrash();await loadItems();toast('콘텐츠를 복원했습니다.');});
 
 let deletingSelected=false;
