@@ -1,6 +1,6 @@
 import {createHash} from 'node:crypto';
 import {authenticated,session,equal,fail,slug,validate,nextRecord,summary,MAX_BYTES} from '../lib/core.mjs';
-import {read,write,list} from '../lib/storage.mjs';
+import {read,write,list,remove,removePrefix} from '../lib/storage.mjs';
 export default async function handler(req,res){
  res.setHeader('Cache-Control','private, no-store');res.setHeader('X-Content-Type-Options','nosniff');
  const env=process.env;const op=String(req.query?.op||'');
@@ -11,7 +11,7 @@ export default async function handler(req,res){
   if(req.method==='POST'&&req.headers.origin!==new URL(env.APP_ORIGIN).origin)fail(403,'사이트 주소를 확인한 뒤 다시 접속해 주세요.');
   let body=req.body||{};if(typeof body==='string'){if(Buffer.byteLength(body)>MAX_BYTES+10000)fail(413,'전송 용량이 너무 큽니다.');try{body=JSON.parse(body);}catch{fail(400,'잘못된 요청입니다.');}}
   if(Buffer.byteLength(JSON.stringify(body))>MAX_BYTES+10000)fail(413,'전송 용량이 너무 큽니다.');
-  const mutations=['login','logout','save','delete','restore'];if(mutations.includes(op)&&req.method!=='POST')fail(405,'POST 요청이 필요합니다.');
+  const mutations=['login','logout','save','delete','restore','emptyTrash'];if(mutations.includes(op)&&req.method!=='POST')fail(405,'POST 요청이 필요합니다.');
   const cookie=(value,age)=>res.setHeader('Set-Cookie',`studio_session=${value}; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=${age}`);
   if(op==='login'){
    // Vercel overwrites this header; do not use a user-provided forwarding header.
@@ -27,6 +27,19 @@ export default async function handler(req,res){
   if(!authenticated(req.headers.cookie,env))fail(401,'로그인이 필요합니다.');
   if(op==='session')return send(200,{user:{name:'팀 공용 관리자'}});
   if(op==='list'){const records=await list();return send(200,{items:records.filter(r=>req.query.trash==='1'?!!r.deletedAt:!r.deletedAt).map(summary)});}
+  if(op==='emptyTrash'){
+   const items=body.items;
+   if(!Array.isArray(items)||items.length>500)fail(400,'휴지통 항목을 확인해 주세요.');
+   let deleted=0;const skipped=[];
+   for(const item of items){
+    const id=slug(item?.slug);const key='studio/records/'+id+'.json';const current=await read(key);
+    if(!current||!current.value.deletedAt||current.value.revision!==item.revision){skipped.push(id);continue;}
+    await removePrefix('studio/versions/'+id+'/');
+    await remove('studio/github/'+id+'.json');
+    await remove(key);deleted++;
+   }
+   return send(200,{deleted,skipped});
+  }
   const id=slug(req.query.slug||body.slug||body.record?.slug);const key='studio/records/'+id+'.json';const current=await read(key);
   if(op==='get'){if(!current||current.value.deletedAt)fail(404,'콘텐츠가 없습니다.');return send(200,current.value);}
   if(op==='version'){const revision=String(req.query.revision||'');if(!current||!current.value.history.some(x=>x.revision===revision))fail(404,'수정 이력이 없습니다.');const version=await read('studio/versions/'+id+'/'+revision+'.json');if(!version)fail(404,'수정 이력이 없습니다.');return send(200,version.value);}
