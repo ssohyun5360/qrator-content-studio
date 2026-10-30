@@ -1,4 +1,4 @@
-import {CATEGORIES,STATUS,REVIEW_STATUS,esc,slugify,metadataFromHTML,suggestTags,readArchive,previewHTML,editedHTML,exportFolder,mime} from '/client-helpers.mjs';
+import {CATEGORIES,STATUS,REVIEW_STATUS,normalizeStatus,statusLabel,esc,slugify,metadataFromHTML,suggestTags,readArchive,previewHTML,editedHTML,exportFolder,mime} from '/client-helpers.mjs';
 const $=id=>document.getElementById(id);
 const state={items:[],filtered:[],selected:new Set(),page:1,user:{name:'공용 관리자'},current:null,mode:'visual',dirty:false,editorReady:false};
 const clone=x=>JSON.parse(JSON.stringify(x));
@@ -25,7 +25,7 @@ function syncSelects(){
 }
 async function loadItems(){
  $('rows').innerHTML='<tr><td colspan="12" class="empty">콘텐츠를 불러오는 중입니다.</td></tr>';
- try{const result=await api('list');state.items=result.items;syncSelects();applyFilters();}catch(e){$('rows').innerHTML='<tr><td colspan="12" class="empty">'+esc(e.message)+'</td></tr>';$('totalCount').textContent='불러오기 실패';throw e;}
+ try{const result=await api('list');state.items=result.items.map(x=>({...x,status:normalizeStatus(x.status)}));syncSelects();applyFilters();}catch(e){$('rows').innerHTML='<tr><td colspan="12" class="empty">'+esc(e.message)+'</td></tr>';$('totalCount').textContent='불러오기 실패';throw e;}
 }
 function applyFilters(){
  const field=$('searchField').value,query=$('search').value.trim().toLowerCase(),category=$('categoryFilter').value,status=$('statusFilter').value,review=$('reviewFilter').value,tag=$('tagFilter').value,from=$('dateFrom').value,to=$('dateTo').value,dateField=$('dateField').value;
@@ -36,8 +36,8 @@ function applyFilters(){
 function renderList(){
  const count=state.filtered.length,size=Number($('pageSize').value),pages=Math.max(1,Math.ceil(count/size));state.page=Math.min(state.page,pages);
  const visible=state.filtered.slice((state.page-1)*size,state.page*size);
- const scheduled=state.items.filter(x=>x.status==='scheduled').length,ready=state.items.filter(x=>x.status==='ready').length;
- $('totalCount').textContent='총 '+count+'건  |  게시 예정 '+scheduled+' · 전달 준비 완료 '+ready;
+ const scheduled=state.items.filter(x=>x.status==='scheduled').length,completed=state.items.filter(x=>x.status==='completed').length;
+ $('totalCount').textContent='총 '+count+'건  |  게시 예정 '+scheduled+' · 작성 완료 '+completed;
  $('rows').innerHTML=visible.length?visible.map((r,i)=>'<tr><td><input type="checkbox" class="row-check" data-slug="'+esc(r.slug)+'" aria-label="'+esc(r.title)+' 선택" '+(state.selected.has(r.slug)?'checked':'')+'></td><td>'+(count-(state.page-1)*size-i)+'</td><td><span class="thumb">'+esc(r.category)+'<br>등기 가이드</span></td><td>'+esc(r.category.replace(' 변경','').replace(' 이전',''))+'</td><td><button class="article-title" data-open="'+esc(r.slug)+'">'+esc(r.title)+'</button><div class="small muted">'+esc(r.slug)+'</div></td><td>'+r.tags.slice(0,3).map(t=>'<span class="tag">'+esc(t)+'</span>').join('')+'</td><td><span class="badge review-'+esc(r.reviewStatus||'pending')+'">'+(REVIEW_STATUS[r.reviewStatus||'pending']||'검토 전')+'</span></td><td><span class="badge '+esc(r.status)+'">'+STATUS[r.status]+'</span></td><td>'+(r.history?.length?'<span style="color:#3866c8">있음</span>':'-')+'</td><td>'+dateTime(r.scheduledAt)+'</td><td>'+dateTime(r.updatedAt)+'</td><td>'+esc(r.updatedBy||r.author)+'</td><td><button data-open="'+esc(r.slug)+'">상세</button></td></tr>').join(''):'<tr><td colspan="13" class="empty">조건에 맞는 콘텐츠가 없습니다.</td></tr>';
  $('selectedCount').textContent=state.selected.size+'건 선택';
  if($('deleteSelected'))$('deleteSelected').disabled=deletingSelected||state.selected.size===0;
@@ -66,7 +66,7 @@ function loadVisual(){
 }
 function renderAssets(){$('assetList').innerHTML=state.current.assets.map((a,i)=>'<span class="asset-chip">'+esc(a.path)+'<button type="button" data-asset-remove="'+i+'" aria-label="'+esc(a.path)+' 삭제">×</button></span>').join('');}
 function fillEditor(record){
- state.current=clone(record);state.dirty=false;state.mode='visual';
+ record={...record,status:normalizeStatus(record.status)};state.current=clone(record);state.dirty=false;state.mode='visual';
  $('listView').hidden=true;$('editorView').hidden=false;$('editorTitle').textContent=record.revision?'등기 가이드 수정':'등기 가이드 작성';
  $('editTitle').value=record.title;$('editCategory').value=record.category;$('editAuthor').value=record.author;
  $('editSummary').value=record.summary;$('editSlug').value=record.slug;$('editSlug').readOnly=!!record.revision;$('slugHint').textContent=record.revision?'등록된 콘텐츠의 주소는 고정됩니다.':'영문 소문자·숫자·하이픈';
@@ -102,7 +102,7 @@ async function download(records){
  const data=await exportFolder(records,window.JSZip);const url=URL.createObjectURL(new Blob([data],{type:'application/zip'}));const link=document.createElement('a');
  link.href=url;link.download='Qrator_guides_'+kstDate(new Date()).replaceAll('-','')+'.zip';link.click();setTimeout(()=>URL.revokeObjectURL(url),20000);toast('전달 폴더를 다운로드했습니다.');
 }
-async function fetchSelected(slugs){return Promise.all(slugs.map(slug=>api('get',null,{slug})));}
+async function fetchSelected(slugs){return Promise.all(slugs.map(async slug=>{const r=await api('get',null,{slug});return {...r,status:normalizeStatus(r.status)};}));}
 async function batchStatus(status){
  const slugs=[...state.selected];if(!slugs.length){toast('콘텐츠를 선택해 주세요.');return;}
  if(!confirm(slugs.length+'편을 "'+STATUS[status]+'" 상태로 변경하시겠습니까?'))return;
@@ -132,7 +132,7 @@ async function importFiles(files){
 }
 async function showHistory(){
  const history=[...(state.current.history||[])].reverse();
- $('historyRows').innerHTML=history.map(v=>'<div class="history-row"><div class="history-info"><strong>'+esc(v.title)+'</strong><div class="small muted">'+dateTime(v.updatedAt)+' · '+esc(v.updatedBy)+' · '+STATUS[v.status]+'</div></div><button data-restore="'+esc(v.revision)+'">이 버전 불러오기</button></div>').join('')||'<p class="empty">이전 수정본이 없습니다.</p>';$('historyDialog').showModal();
+ $('historyRows').innerHTML=history.map(v=>'<div class="history-row"><div class="history-info"><strong>'+esc(v.title)+'</strong><div class="small muted">'+dateTime(v.updatedAt)+' · '+esc(v.updatedBy)+' · '+statusLabel(v.status)+'</div></div><button data-restore="'+esc(v.revision)+'">이 버전 불러오기</button></div>').join('')||'<p class="empty">이전 수정본이 없습니다.</p>';$('historyDialog').showModal();
 }
 function guard(action){return async(...args)=>{try{await action(...args);}catch(e){toast(e.message);}};}
 $('filterForm').onsubmit=e=>{e.preventDefault();applyFilters();};
@@ -149,8 +149,8 @@ $('createButton').onclick=newRecord;$('navContents').onclick=guard(showList);$('
 $('importButton').onclick=()=>$('importInput').click();
 $('importInput').onchange=guard(async e=>{const files=[...e.target.files];e.target.value='';await importFiles(files);});
 $('downloadSelected').onclick=guard(async()=>download(await fetchSelected([...state.selected])));
-$('downloadReady').onclick=guard(async()=>download(await fetchSelected(state.items.filter(x=>x.status==='ready').map(x=>x.slug))));
-$('readySelected').onclick=guard(()=>batchStatus('ready'));$('privateSelected').onclick=guard(()=>batchStatus('private'));
+$('downloadReady').onclick=guard(async()=>download(await fetchSelected(state.items.filter(x=>x.status==='completed').map(x=>x.slug))));
+$('completedSelected').onclick=guard(()=>batchStatus('completed'));$('privateSelected').onclick=guard(()=>batchStatus('private'));
 $('editorForm').onsubmit=e=>e.preventDefault();$('editorForm').oninput=e=>{markDirty();if(e.target.id==='editTitle')$('titleLength').textContent=e.target.value.length+' / 100';};
 $('saveButton').onclick=guard(save);$('saveBottom').onclick=guard(save);
 $('htmlEditor').oninput=markDirty;
