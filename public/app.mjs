@@ -1,4 +1,4 @@
-import {CATEGORIES,STATUS,esc,slugify,metadataFromHTML,suggestTags,readArchive,previewHTML,editedHTML,exportFolder,mime} from '/client-helpers.mjs';
+import {CATEGORIES,STATUS,REVIEW_STATUS,esc,slugify,metadataFromHTML,suggestTags,readArchive,previewHTML,editedHTML,exportFolder,mime} from '/client-helpers.mjs';
 const $=id=>document.getElementById(id);
 const state={items:[],filtered:[],selected:new Set(),page:1,user:{name:'공용 관리자'},current:null,mode:'visual',dirty:false,editorReady:false};
 const clone=x=>JSON.parse(JSON.stringify(x));
@@ -21,15 +21,16 @@ function syncSelects(){
  for(const id of ['categoryFilter','editCategory']){const selected=$(id).value;$(id).innerHTML=(id==='categoryFilter'?'<option value="">카테고리 전체</option>':'')+CATEGORIES.map(x=>'<option>'+esc(x)+'</option>').join('');$(id).value=selected|| (id==='editCategory'?CATEGORIES[0]:'');}
  for(const id of ['statusFilter','editStatus']){const selected=$(id).value;$(id).innerHTML=(id==='statusFilter'?'<option value="">게시 상태 전체</option>':'')+Object.entries(STATUS).map(([k,v])=>'<option value="'+k+'">'+v+'</option>').join('');$(id).value=selected||(id==='editStatus'?'draft':'');}
  const selected=$('tagFilter').value;$('tagFilter').innerHTML='<option value="">태그 전체</option>'+[...new Set(state.items.flatMap(x=>x.tags))].sort().map(x=>'<option>'+esc(x)+'</option>').join('');$('tagFilter').value=selected;
+ const reviewSelected=$('reviewFilter').value;$('reviewFilter').innerHTML='<option value="">검토 상태 전체</option>'+Object.entries(REVIEW_STATUS).map(([k,v])=>'<option value="'+k+'">'+v+'</option>').join('');$('reviewFilter').value=reviewSelected;
 }
 async function loadItems(){
  $('rows').innerHTML='<tr><td colspan="12" class="empty">콘텐츠를 불러오는 중입니다.</td></tr>';
  try{const result=await api('list');state.items=result.items;syncSelects();applyFilters();}catch(e){$('rows').innerHTML='<tr><td colspan="12" class="empty">'+esc(e.message)+'</td></tr>';$('totalCount').textContent='불러오기 실패';throw e;}
 }
 function applyFilters(){
- const field=$('searchField').value,query=$('search').value.trim().toLowerCase(),category=$('categoryFilter').value,status=$('statusFilter').value,tag=$('tagFilter').value,from=$('dateFrom').value,to=$('dateTo').value,dateField=$('dateField').value;
+ const field=$('searchField').value,query=$('search').value.trim().toLowerCase(),category=$('categoryFilter').value,status=$('statusFilter').value,review=$('reviewFilter').value,tag=$('tagFilter').value,from=$('dateFrom').value,to=$('dateTo').value,dateField=$('dateField').value;
  if(from&&to&&from>to){toast('시작일과 종료일을 확인해 주세요.');return;}
- state.filtered=state.items.filter(x=>(!query||String(x[field]||'').toLowerCase().includes(query))&&(!category||x.category===category)&&(!status||x.status===status)&&(!tag||x.tags.includes(tag))&&(!from||kstDate(x[dateField])>=from)&&(!to||kstDate(x[dateField])<=to));
+ state.filtered=state.items.filter(x=>(!query||String(x[field]||'').toLowerCase().includes(query))&&(!category||x.category===category)&&(!status||x.status===status)&&(!review||(x.reviewStatus||'pending')===review)&&(!tag||x.tags.includes(tag))&&(!from||kstDate(x[dateField])>=from)&&(!to||kstDate(x[dateField])<=to));
  const sort=$('sort').value;state.filtered.sort((a,b)=>sort==='title'?a.title.localeCompare(b.title,'ko'):b[sort].localeCompare(a[sort]));state.page=1;renderList();
 }
 function renderList(){
@@ -37,7 +38,7 @@ function renderList(){
  const visible=state.filtered.slice((state.page-1)*size,state.page*size);
  const scheduled=state.items.filter(x=>x.status==='scheduled').length,ready=state.items.filter(x=>x.status==='ready').length;
  $('totalCount').textContent='총 '+count+'건  |  게시 예정 '+scheduled+' · 전달 준비 완료 '+ready;
- $('rows').innerHTML=visible.length?visible.map((r,i)=>'<tr><td><input type="checkbox" class="row-check" data-slug="'+esc(r.slug)+'" aria-label="'+esc(r.title)+' 선택" '+(state.selected.has(r.slug)?'checked':'')+'></td><td>'+(count-(state.page-1)*size-i)+'</td><td><span class="thumb">'+esc(r.category)+'<br>등기 가이드</span></td><td>'+esc(r.category.replace(' 변경','').replace(' 이전',''))+'</td><td><button class="article-title" data-open="'+esc(r.slug)+'">'+esc(r.title)+'</button><div class="small muted">'+esc(r.slug)+'</div></td><td>'+r.tags.slice(0,3).map(t=>'<span class="tag">'+esc(t)+'</span>').join('')+'</td><td><span class="badge '+esc(r.status)+'">'+STATUS[r.status]+'</span></td><td>'+(r.history?.length?'<span style="color:#3866c8">있음</span>':'-')+'</td><td>'+dateTime(r.scheduledAt)+'</td><td>'+dateTime(r.updatedAt)+'</td><td>'+esc(r.updatedBy||r.author)+'</td><td><button data-open="'+esc(r.slug)+'">상세</button></td></tr>').join(''):'<tr><td colspan="12" class="empty">조건에 맞는 콘텐츠가 없습니다.</td></tr>';
+ $('rows').innerHTML=visible.length?visible.map((r,i)=>'<tr><td><input type="checkbox" class="row-check" data-slug="'+esc(r.slug)+'" aria-label="'+esc(r.title)+' 선택" '+(state.selected.has(r.slug)?'checked':'')+'></td><td>'+(count-(state.page-1)*size-i)+'</td><td><span class="thumb">'+esc(r.category)+'<br>등기 가이드</span></td><td>'+esc(r.category.replace(' 변경','').replace(' 이전',''))+'</td><td><button class="article-title" data-open="'+esc(r.slug)+'">'+esc(r.title)+'</button><div class="small muted">'+esc(r.slug)+'</div></td><td>'+r.tags.slice(0,3).map(t=>'<span class="tag">'+esc(t)+'</span>').join('')+'</td><td><span class="badge review-'+esc(r.reviewStatus||'pending')+'">'+(REVIEW_STATUS[r.reviewStatus||'pending']||'검토 전')+'</span></td><td><span class="badge '+esc(r.status)+'">'+STATUS[r.status]+'</span></td><td>'+(r.history?.length?'<span style="color:#3866c8">있음</span>':'-')+'</td><td>'+dateTime(r.scheduledAt)+'</td><td>'+dateTime(r.updatedAt)+'</td><td>'+esc(r.updatedBy||r.author)+'</td><td><button data-open="'+esc(r.slug)+'">상세</button></td></tr>').join(''):'<tr><td colspan="13" class="empty">조건에 맞는 콘텐츠가 없습니다.</td></tr>';
  $('selectedCount').textContent=state.selected.size+'건 선택';
  if($('deleteSelected'))$('deleteSelected').disabled=deletingSelected||state.selected.size===0;
  $('selectAll').checked=visible.length>0&&visible.every(x=>state.selected.has(x.slug));
@@ -51,7 +52,7 @@ function recordFromForm(){
  const r=clone(state.current);
  r.title=$('editTitle').value.trim();r.category=$('editCategory').value;r.author=$('editAuthor').value;r.summary=$('editSummary').value;r.slug=$('editSlug').value.trim();r.tags=$('editTags').value.split(',').map(x=>x.trim()).filter(Boolean);r.status=$('editStatus').value;
  r.scheduledAt=$('editSchedule').value?new Date($('editSchedule').value+':00+09:00').toISOString():null;
- r.note=$('editNote').value;r.sourceUrls=$('editSources').value.split('\n').map(x=>x.trim()).filter(Boolean);r.verification=$('editVerification').value;r.seoTitle=$('seoTitle').value||r.title;r.seoDescription=$('seoDescription').value||r.summary;
+ r.note=$('editNote').value;r.sourceUrls=$('editSources').value.split('\n').map(x=>x.trim()).filter(Boolean);r.reviewStatus=$('editReviewStatus').value;r.seoTitle=$('seoTitle').value||r.title;r.seoDescription=$('seoDescription').value||r.summary;
  if(state.mode==='code')r.html=$('htmlEditor').value;else if(state.editorReady)r.html=editedHTML($('visualEditor').contentDocument,r);
  return r;
 }
@@ -70,7 +71,7 @@ function fillEditor(record){
  $('editTitle').value=record.title;$('editCategory').value=record.category;$('editAuthor').value=record.author;
  $('editSummary').value=record.summary;$('editSlug').value=record.slug;$('editSlug').readOnly=!!record.revision;$('slugHint').textContent=record.revision?'등록된 콘텐츠의 주소는 고정됩니다.':'영문 소문자·숫자·하이픈';
  $('editTags').value=record.tags.join(', ');$('editStatus').value=record.status;$('editSchedule').value=toInput(record.scheduledAt);
- $('editNote').value=record.note||'';$('editSources').value=(record.sourceUrls||[]).join('\n');$('editVerification').value=record.verification||'운영자 검토 전';
+ $('editNote').value=record.note||'';$('editSources').value=(record.sourceUrls||[]).join('\n');$('editReviewStatus').value=record.reviewStatus||((record.verification||'').includes('완료')?'complete':((record.verification||'').includes('수정')?'needs_revision':((record.verification||'').includes('검토 중')?'in_review':'pending')));
  $('seoTitle').value=record.seoTitle||record.title;$('seoDescription').value=record.seoDescription||record.summary;
  $('titleLength').textContent=record.title.length+' / 100';$('saveState').textContent=record.revision?'저장됨':'작성 중 · 저장 필요';
  $('revisionInfo').textContent=record.updatedAt?dateTime(record.updatedAt)+' · '+(record.updatedBy||record.author):'';
@@ -80,7 +81,7 @@ function fillEditor(record){
 }
 async function openRecord(slug){if(!ensureLeave())return;const r=await api('get',null,{slug});fillEditor(r);}
 function newRecord(){
- if(!ensureLeave())return;fillEditor({slug:'',title:'',category:CATEGORIES[0],summary:'',tags:[],html:starterHTML,entryPath:'index.html',assets:[],author:state.user.name,status:'draft',scheduledAt:null,note:'',sourceUrls:[],verification:'운영자 검토 전',history:[]});
+ if(!ensureLeave())return;fillEditor({slug:'',title:'',category:CATEGORIES[0],summary:'',tags:[],html:starterHTML,entryPath:'index.html',assets:[],author:state.user.name,status:'draft',reviewStatus:'pending',scheduledAt:null,note:'',sourceUrls:[],verification:'',history:[]});
 }
 async function save(){
  if(!$('editorForm').reportValidity())return;
@@ -121,7 +122,7 @@ async function importFiles(files){
     const existing=state.items.find(x=>x.slug===candidate.slug);let expectedRevision=null,base={};
     if(existing){if(!confirm('"'+candidate.title+'"과 같은 주소가 있습니다. 기존 글의 새 수정본으로 등록하시겠습니까?')){skipped++;continue;}
      base=await api('get',null,{slug:candidate.slug});expectedRevision=base.revision;}
-    const record={...base,...candidate,author:state.user.name,status:'draft',tags:[...new Set([...(base.tags||[]),...(candidate.tags||[])])],note:base.note||'',verification:'가져온 원본 · 관리자 검토 전'};
+    const record={...base,...candidate,author:state.user.name,status:'draft',reviewStatus:'pending',tags:[...new Set([...(base.tags||[]),...(candidate.tags||[])])],note:base.note||'',verification:base.verification||''};
     const result=await api('save',{record,expectedRevision});state.items=state.items.filter(x=>x.slug!==result.slug);state.items.push(result);imported++;
    }catch(e){failed.push(candidate.entryPath+': '+e.message);}
   }
