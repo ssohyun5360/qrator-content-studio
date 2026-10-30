@@ -1,5 +1,7 @@
 export const CATEGORIES=['상호 변경','본점 이전','목적 변경','임원 변경','지점 변경'];
-export const STATUS={scheduled:'게시 예정',draft:'작성 중',needs_changes:'수정 필요',ready:'전달 준비 완료',delivered:'전달 완료',private:'비공개'};
+export const STATUS={scheduled:'게시 예정',draft:'작성 중',completed:'작성 완료',delivered:'전달 완료',private:'비공개'};
+export function normalizeStatus(status){return status==='needs_changes'||status==='ready'?'completed':status;}
+export function statusLabel(status){return STATUS[normalizeStatus(status)]||'작성 중';}
 export const REVIEW_STATUS={pending:'검토 전',in_review:'검토 중',needs_revision:'수정 필요',complete:'검토 완료'};
 export function esc(value){return String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 export function safeArchivePath(value){if(typeof value!=='string'||value.length>240||value.startsWith('/')||/[\x00-\x1f\\:]/.test(value)||value.split('/').some(p=>!p||p==='.'||p==='..'))throw new Error('안전하지 않은 ZIP 파일 경로입니다.');return value;}
@@ -122,7 +124,7 @@ export async function exportFolder(records,Zip){
   items.push({...meta,file:folder+entryPath,assetCount:assets.length});
  }
  root.file('manifest.json',JSON.stringify({schemaVersion:1,exportedAt:new Date().toISOString(),count:items.length,items},null,2));
- root.file('index.html','<!doctype html><html lang="ko"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>큐레이터 등기 가이드 전달 목록</title><style>body{font:16px/1.7 sans-serif;max-width:1000px;margin:60px auto;padding:24px}table{border-collapse:collapse;width:100%}td,th{border-bottom:1px solid #ddd;padding:14px;text-align:left}a{color:#0366ff}</style><h1>큐레이터 등기 가이드 전달 목록</h1><table><thead><tr><th>카테고리</th><th>제목</th><th>검토 상태</th><th>수정자</th></tr></thead><tbody>'+items.map(x=>'<tr><td>'+esc(x.category)+'</td><td><a href="'+esc(x.file)+'">'+esc(x.title)+'</a></td><td>'+esc(STATUS[x.status])+'</td><td>'+esc(x.updatedBy)+'</td></tr>').join('')+'</tbody></table></html>');
+ root.file('index.html','<!doctype html><html lang="ko"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>큐레이터 등기 가이드 전달 목록</title><style>body{font:16px/1.7 sans-serif;max-width:1000px;margin:60px auto;padding:24px}table{border-collapse:collapse;width:100%}td,th{border-bottom:1px solid #ddd;padding:14px;text-align:left}a{color:#0366ff}</style><h1>큐레이터 등기 가이드 전달 목록</h1><table><thead><tr><th>카테고리</th><th>제목</th><th>검토 상태</th><th>수정자</th></tr></thead><tbody>'+items.map(x=>'<tr><td>'+esc(x.category)+'</td><td><a href="'+esc(x.file)+'">'+esc(x.title)+'</a></td><td>'+esc(statusLabel(x.status))+'</td><td>'+esc(x.updatedBy)+'</td></tr>').join('')+'</tbody></table></html>');
  root.file('README.txt','Qrator 등기 가이드 개발팀 전달 패키지\n\nindex.html: 검토 목록\nmanifest.json: 제목·카테고리·상태·출처·원본 경로\narticles/{slug}/: 본문 HTML, 첨부 파일, content.json\n\n각 글의 기존 상대 경로를 보존했습니다. 외부 URL 자원은 원문 연결을 유지합니다.\n이 패키지를 내려받아도 홈페이지가 자동으로 공개되지는 않습니다.\n');
  return zip.generateAsync({type:'uint8array',compression:'DEFLATE'});
 }
