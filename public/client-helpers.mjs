@@ -17,6 +17,30 @@ export function metadataFromHTML(html,file){
  const category=CATEGORIES.find(c=>text.includes(c))||'상호 변경';
  return {title:title.slice(0,100),category,summary:doc.querySelector('meta[name="description"]')?.content?.slice(0,200)||'',slug:slugify(file.split('/').pop())};
 }
+export function suggestTags(html,title='',category=''){
+ const doc=new DOMParser().parseFromString(html,'text/html');
+ const text=[title,category,doc.title,doc.querySelector('meta[name="description"]')?.content||'',doc.body.textContent||''].join(' ').toLowerCase();
+ const rules=[
+  ['상호 변경',['상호 변경','상호 검색','동일 상호','상호 중복','회사 이름 변경','상호변경'],['상호 변경','상호 검색']],
+  ['본점 이전',['본점 이전','본점 주소','회사 주소 이전','본점이전','관할 이전','관할 변경'],['본점 이전','관할 이전']],
+  ['목적 변경',['목적 변경','사업 목적','사업목적','목적 추가','사업 목적 추가'],['목적 변경','사업 목적']],
+  ['임원 변경',['임원 변경','대표이사 변경','대표 이사 변경','이사 선임','이사 임기','임기 연장','사임','취임','주주총회','정관'],['임원 변경']],
+  ['지점 변경',['지점 변경','지점 설치','지점 폐지','지점 이전','지점 등기'],['지점 변경','지점 등기']],
+ ];
+ const matched=rules.filter(([,terms])=>terms.some(term=>text.includes(term)));
+ const selected=matched.find(([name])=>name===category)||matched[0];
+ const tags=selected?[...selected[2]]:[];
+ const extra=[
+  ['온라인 판매',['온라인 판매','전자상거래']],['통신판매업',['통신판매업','통신판매 신고']],
+  ['대표이사 선임',['대표이사 선임','대표 이사 선임']],['이사 선임',['이사 선임']],
+  ['임기',['임기','임기 연장']],['정관',['정관']],['주주총회',['주주총회']],
+  ['관할 이전',['관할 이전','관할 변경']],['등기 신청',['등기 신청','변경등기']],
+  ['필요 서류',['필요 서류','준비 서류','제출 서류']],['절차',['절차','진행 순서']],
+  ['비용',['등록면허세','교육세','등기 비용','수수료']],['기한',['2주 이내','신청 기한','등기 기한']],
+ ];
+ for(const [tag,terms] of extra)if(terms.some(term=>text.includes(term))&&!tags.includes(tag))tags.push(tag);
+ return tags.slice(0,8);
+}
 export async function readArchive(file,Zip){
  if(file.size>15*1024*1024)throw new Error('ZIP은 15MB 이내로 올려 주세요.');
  const zip=await Zip.loadAsync(await file.arrayBuffer());const entries=Object.values(zip.files).filter(x=>!x.dir);
@@ -54,7 +78,7 @@ export async function readArchive(file,Zip){
   for(const style of doc.querySelectorAll('style'))for(const match of style.textContent.matchAll(/url\(\s*(['"]?)(.*?)\1\s*\)/gi))addReference(item.entryPath,match[2]);
   return [...included.values()];
  }
- return htmlFiles.map(x=>({...metadataFromHTML(x.html,x.entryPath),...x,assets:assetsForHTML(x)}));
+ return htmlFiles.map(x=>{const meta=metadataFromHTML(x.html,x.entryPath);return {...meta,...x,tags:suggestTags(x.html,meta.title,meta.category),assets:assetsForHTML(x)};});
 }
 export function mime(path){const ext=path.split('.').pop().toLowerCase();return {png:'image/png',jpg:'image/jpeg',jpeg:'image/jpeg',webp:'image/webp',gif:'image/gif',svg:'image/svg+xml',css:'text/css',woff:'font/woff',woff2:'font/woff2',ttf:'font/ttf'}[ext]||'application/octet-stream';}
 export function previewHTML(record){
