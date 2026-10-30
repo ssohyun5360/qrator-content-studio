@@ -1,4 +1,4 @@
-import {CATEGORIES,STATUS,esc,slugify,metadataFromHTML,readArchive,previewHTML,editedHTML,exportFolder,mime} from '/client-helpers.mjs';
+import {CATEGORIES,STATUS,esc,slugify,metadataFromHTML,suggestTags,readArchive,previewHTML,editedHTML,exportFolder,mime} from '/client-helpers.mjs';
 const $=id=>document.getElementById(id);
 const state={items:[],filtered:[],selected:new Set(),page:1,user:{name:'공용 관리자'},current:null,mode:'visual',dirty:false,editorReady:false};
 const clone=x=>JSON.parse(JSON.stringify(x));
@@ -114,14 +114,14 @@ async function importFiles(files){
  let imported=0,skipped=0,failed=[];
  for(const file of files){
   let candidates;
-  try{if(/\.zip$/i.test(file.name))candidates=await readArchive(file,window.JSZip);else if(/\.html?$/i.test(file.name)){if(file.size>2000000)throw new Error('HTML은 2MB 이내로 올려 주세요.');const html=await file.text();candidates=[{...metadataFromHTML(html,file.name),html,entryPath:file.name,assets:[]}];}else throw new Error('HTML 또는 ZIP 파일을 선택해 주세요.');}
+  try{if(/\.zip$/i.test(file.name))candidates=await readArchive(file,window.JSZip);else if(/\.html?$/i.test(file.name)){if(file.size>2000000)throw new Error('HTML은 2MB 이내로 올려 주세요.');const html=await file.text();const meta=metadataFromHTML(html,file.name);candidates=[{...meta,tags:suggestTags(html,meta.title,meta.category),html,entryPath:file.name,assets:[]}];}else throw new Error('HTML 또는 ZIP 파일을 선택해 주세요.');}
   catch(e){failed.push(file.name+': '+e.message);continue;}
   for(const candidate of candidates){
    try{
     const existing=state.items.find(x=>x.slug===candidate.slug);let expectedRevision=null,base={};
     if(existing){if(!confirm('"'+candidate.title+'"과 같은 주소가 있습니다. 기존 글의 새 수정본으로 등록하시겠습니까?')){skipped++;continue;}
      base=await api('get',null,{slug:candidate.slug});expectedRevision=base.revision;}
-    const record={...base,...candidate,author:state.user.name,status:'draft',tags:base.tags||[],note:base.note||'',verification:'가져온 원본 · 관리자 검토 전'};
+    const record={...base,...candidate,author:state.user.name,status:'draft',tags:[...new Set([...(base.tags||[]),...(candidate.tags||[])])],note:base.note||'',verification:'가져온 원본 · 관리자 검토 전'};
     const result=await api('save',{record,expectedRevision});state.items=state.items.filter(x=>x.slug!==result.slug);state.items.push(result);imported++;
    }catch(e){failed.push(candidate.entryPath+': '+e.message);}
   }
