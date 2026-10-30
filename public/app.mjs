@@ -2,7 +2,7 @@ import {CATEGORIES,STATUS,REVIEW_STATUS,normalizeStatus,statusLabel,esc,slugify,
 const $=id=>document.getElementById(id);
 const state={items:[],filtered:[],selected:new Set(),page:1,user:{name:'공용 관리자'},current:null,mode:'visual',dirty:false,editorReady:false};
 const clone=x=>JSON.parse(JSON.stringify(x));
-let toastTimer;
+let toastTimer,autosaveTimer;const LOCAL_DRAFT_KEY='qrator-content-studio:autosave';
 function showLogin(){ $('workspace').hidden=true;$('loginView').hidden=false; }
 function toast(message){$('toast').textContent=message;$('toast').hidden=false;clearTimeout(toastTimer);toastTimer=setTimeout(()=>$('toast').hidden=true,6500);}
 async function api(op,body,params={}){
@@ -16,7 +16,7 @@ function showWorkspace(){$('loginView').hidden=true;$('workspace').hidden=false;
 const kstDate=value=>value?new Intl.DateTimeFormat('sv-SE',{timeZone:'Asia/Seoul',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(value)):'';
 const dateTime=value=>value?new Intl.DateTimeFormat('sv-SE',{timeZone:'Asia/Seoul',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hour12:false}).format(new Date(value)):'-';
 const toInput=value=>value?new Date(new Date(value).getTime()+9*3600000).toISOString().slice(0,16):'';
-function markDirty(){state.dirty=true;$('saveState').textContent='변경사항 있음 · 저장 필요';}
+function markDirty(){state.dirty=true;$('saveState').textContent='변경사항 있음 · 저장 필요';clearTimeout(autosaveTimer);autosaveTimer=setTimeout(()=>{try{localStorage.setItem(LOCAL_DRAFT_KEY,JSON.stringify({savedAt:new Date().toISOString(),record:recordFromForm(),expectedRevision:state.current.revision||null}));$('saveState').textContent='임시 저장됨 · 사이트 저장 필요';}catch{$('saveState').textContent='임시 저장 실패';}},1000);}
 function syncSelects(){
  for(const id of ['categoryFilter','editCategory']){const selected=$(id).value;$(id).innerHTML=(id==='categoryFilter'?'<option value="">카테고리 전체</option>':'')+CATEGORIES.map(x=>'<option>'+esc(x)+'</option>').join('');$(id).value=selected|| (id==='editCategory'?CATEGORIES[0]:'');}
  for(const id of ['statusFilter','editStatus']){const selected=$(id).value;$(id).innerHTML=(id==='statusFilter'?'<option value="">게시 상태 전체</option>':'')+Object.entries(STATUS).map(([k,v])=>'<option value="'+k+'">'+v+'</option>').join('');$(id).value=selected||(id==='editStatus'?'draft':'');}
@@ -86,7 +86,7 @@ function newRecord(){
 async function save(){
  if(!$('editorForm').reportValidity())return;
  const buttons=[$('saveButton'),$('saveBottom')];buttons.forEach(b=>b.disabled=true);
- try{const r=recordFromForm();const saved=await api('save',{record:r,expectedRevision:state.current.revision||null});state.current=saved;state.dirty=false;await showList();toast('저장했습니다. 팀원 모두에게 반영됩니다.');}
+ try{const r=recordFromForm();const saved=await api('save',{record:r,expectedRevision:state.current.revision||null});localStorage.removeItem(LOCAL_DRAFT_KEY);state.current=saved;state.dirty=false;await showList();toast('저장했습니다. 팀원 모두에게 반영됩니다.');}
  catch(e){$('saveState').textContent=e.status===409?'수정 충돌 · 입력 내용 보존 중':'저장 실패 · 입력 내용 보존 중';toast(e.message);}
  finally{buttons.forEach(b=>b.disabled=false);}
 }
@@ -189,7 +189,7 @@ $('deleteButton').onclick=guard(async()=>{if(!confirm('콘텐츠를 휴지통으
 window.addEventListener('beforeunload',e=>{if(state.dirty){e.preventDefault();e.returnValue='';}});
 
 $('selectFiltered').onclick=()=>{state.filtered.forEach(x=>state.selected.add(x.slug));renderList();};
-$('loginForm').onsubmit=async e=>{e.preventDefault();$('loginButton').disabled=true;$('loginError').textContent='';try{const r=await api('login',{password:$('teamPassword').value});$('teamPassword').value='';state.user=r.user;showWorkspace();await loadItems();}catch(e){$('loginError').textContent=e.message;}finally{$('loginButton').disabled=false;}};
+$('loginForm').onsubmit=async e=>{e.preventDefault();$('loginButton').disabled=true;$('loginError').textContent='';try{const r=await api('login',{password:$('teamPassword').value});$('teamPassword').value='';state.user=r.user;showWorkspace();let draft;try{draft=JSON.parse(localStorage.getItem(LOCAL_DRAFT_KEY)||'null');}catch{}if(draft?.record&&confirm('브라우저에 자동 저장된 임시 내용이 있습니다. 복구할까요?')){fillEditor({...draft.record,revision:draft.expectedRevision||undefined});state.dirty=true;$('saveState').textContent='임시 저장 내용 복구됨 · 사이트 저장 필요';return;}if(draft)localStorage.removeItem(LOCAL_DRAFT_KEY);await loadItems();}catch(e){$('loginError').textContent=e.message;}finally{$('loginButton').disabled=false;}};
 $('logoutButton').onclick=guard(async()=>{if(!ensureLeave())return;await api('logout',{});state.dirty=false;state.items=[];state.selected.clear();showLogin();});
 let trashItems=[];
 async function showTrash(){const r=await api('list',null,{trash:'1'});trashItems=r.items;$('emptyTrashButton').disabled=!trashItems.length;$('trashRows').innerHTML=trashItems.map(x=>'<div class="history-row"><span>'+esc(x.title)+'</span><button data-restore-trash="'+esc(x.slug)+'" data-revision="'+esc(x.revision)+'">복원</button></div>').join('')||'<p>휴지통이 비어 있습니다.</p>';if(!$('trashDialog').open)$('trashDialog').showModal();}
