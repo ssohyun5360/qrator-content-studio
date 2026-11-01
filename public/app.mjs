@@ -307,7 +307,7 @@ $('importButton').onclick=()=>$('importInput').click();
 $('importInput').onchange=guard(async e=>{const files=[...e.target.files];e.target.value='';await importFiles(files);});
 $('downloadSelected').onclick=guard(async()=>download(await fetchSelected([...state.selected])));
 $('downloadReady').onclick=guard(async()=>download(await fetchSelected(state.items.filter(x=>x.status==='completed').map(x=>x.slug))));
-$('completedSelected').onclick=guard(()=>batchStatus('completed'));$('privateSelected').onclick=guard(()=>batchStatus('private'));
+$('completedSelected').onclick=guard(()=>batchStatus('completed'));$('publishedSelected').onclick=guard(()=>batchStatus('published'));$('privateSelected').onclick=guard(()=>batchStatus('private'));
 $('editorForm').onsubmit=e=>e.preventDefault();$('editorForm').oninput=e=>{markDirty();if(e.target.id==='editTitle')$('titleLength').textContent=e.target.value.length+' / 100';if(!state.current?.revision){const doc=$('visualEditor').contentDocument;const title=doc?.querySelector('#qbv-title');const subhead=doc?.querySelector('.subhead');const category=doc?.querySelector('[data-template-category]');if(title&&e.target.id==='editTitle')title.textContent=e.target.value||'새 등기 가이드 제목';if(subhead&&e.target.id==='editSummary')subhead.textContent=e.target.value||'이 글에서 안내할 내용을 한두 문장으로 소개해 주세요.';if(category&&e.target.id==='editCategory')category.textContent=e.target.value;}};
 $('saveButton').onclick=guard(save);$('saveBottom').onclick=guard(save);
 $('htmlEditor').oninput=markDirty;
