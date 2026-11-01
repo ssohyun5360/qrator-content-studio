@@ -47,32 +47,118 @@ function renderList(){
 }
 function ensureLeave(){return !state.dirty||confirm('저장하지 않은 변경사항이 있습니다. 목록으로 이동하시겠습니까?');}
 async function showList(){if(!ensureLeave())return;state.dirty=false;$('editorView').hidden=true;$('listView').hidden=false;await loadItems();}
-const starterHTML=`<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>등기 가이드 | 큐레이터</title><meta name="description" content="등기 가이드 내용을 입력해 주세요."><style>
-:root{--blue:#2454c6;--ink:#28354b;--sub:#69758a;--line:#e3e8f1;--pale:#f5f7fc}
-*{box-sizing:border-box}body{margin:0;background:#fff;color:var(--ink);font:16px/1.85 Pretendard,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
-#qrator-guide{max-width:836px;margin:0 auto;padding:42px 24px 64px}#qrator-guide h1,#qrator-guide h2,#qrator-guide h3,#qrator-guide p,#qrator-guide ol,#qrator-guide ul{margin:0}
-.qge-header{padding:0 0 28px;border-bottom:1px solid var(--line)}.eyebrow{display:flex;gap:10px;align-items:center;color:var(--sub);font-size:13px;margin-bottom:13px}.tag{display:inline-flex;padding:3px 10px;background:#eef3ff;color:var(--blue);border-radius:20px;font-weight:650}
-#qrator-guide h1{font-size:34px;line-height:1.4;letter-spacing:-1px;font-weight:750;word-break:keep-all;margin-bottom:12px}.subhead{font-size:17px;color:#596579;line-height:1.7}.meta{display:flex;gap:10px;align-items:center;margin-top:18px;color:var(--sub);font-size:13px}.meta-dot{width:3px;height:3px;background:#aab2c0;border-radius:50%}
-.summary{padding:25px 22px;margin:22px 0 18px;background:var(--pale);border:1px solid #e6ebf5;border-radius:8px}.summary-title{font-size:14px;font-weight:700;margin-bottom:13px!important}.summary-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px}.summary-grid>div{min-width:0}.summary-grid>div+div{padding-left:18px;border-left:1px solid #dce3f0}.summary-grid small{display:block;font-size:12px;color:var(--sub)}.summary-grid strong{display:block;font-size:17px;line-height:1.5;margin:4px 0;color:var(--blue)}.summary-grid em{display:block;font-size:12px;line-height:1.65;color:var(--sub);font-style:normal}
-.toc{padding:22px;margin:18px 0 34px;background:#f8faff;border:1px solid #e5eaf3;border-radius:8px}.toc h2{font-size:17px;margin-bottom:12px!important}.toc ol{padding-left:22px}.toc li{padding:3px 0;color:var(--sub)}.toc a{color:var(--blue);text-decoration:none}
-.article-section{padding:25px 0 30px;border-bottom:1px solid var(--line)}.section-heading{display:flex;align-items:flex-start;gap:12px;margin-bottom:13px}.section-num{flex:0 0 30px;width:30px;height:30px;display:grid;place-items:center;background:#edf2ff;color:var(--blue);font-size:12px;font-weight:700;border-radius:50%}#qrator-guide h2{font-size:23px;line-height:1.5;letter-spacing:-.5px;font-weight:700;word-break:keep-all}.article-section p{margin:8px 0;color:#465267}.note{padding:17px 18px;margin:16px 0;background:#f5f8ff;border-left:3px solid var(--blue);border-radius:4px}.note p{margin:0}.table-wrap{overflow-x:auto;margin:18px 0}table{border-collapse:collapse;width:100%;font-size:14px}th,td{border:1px solid var(--line);padding:11px 13px;text-align:left}th{background:#f5f7fb}
-.qgv-faq{padding-top:30px;margin:16px 0 30px}.qgv-faq>h2{margin-bottom:10px!important}.qgv-faq details{border-bottom:1px solid var(--line);padding:14px 0}.qgv-faq summary{font-size:15px;font-weight:650;color:#27344d;line-height:1.8;cursor:pointer;list-style:none}.qgv-faq summary::-webkit-details-marker{display:none}.qgv-faq summary:after{content:"+";float:right;color:#5974a8;font-size:20px}.qgv-faq details[open] summary:after{content:"−"}.qgv-faq details p{font-size:14px;color:#636c7b;line-height:1.9;margin:8px 24px 0 0}
-.qgv-bridge{padding:20px 0}.qgv-bridge h2{font-size:20px;margin-bottom:7px!important}.qgv-bridge p{color:#596579}
-.qgv-promo{padding:30px;background:#2454c6;color:#fff;border-radius:10px;margin:14px 0 28px}.qgv-promo .qgv-brand{font-weight:750;letter-spacing:.2px}.qgv-promo h2{font-size:24px;color:#fff;margin:8px 0 10px!important}.qgv-promo p{color:#eef3ff}.qgv-apply{display:inline-flex;margin-top:18px;padding:10px 16px;background:#fff;color:#2454c6;text-decoration:none;border-radius:5px;font-weight:700}
-.qgv-sources{padding-top:14px;color:var(--sub);font-size:13px}.qgv-sources>p{margin-bottom:12px}.qgv-sources details{border-top:1px solid var(--line);padding-top:10px}.qgv-sources summary{cursor:pointer;line-height:2.4}.qgv-sources ul{padding-left:20px}
-@media(max-width:600px){#qrator-guide{padding:26px 20px 44px}#qrator-guide h1{font-size:28px}.subhead{font-size:15px}.summary{padding:19px 17px}.summary-grid{grid-template-columns:1fr;gap:12px}.summary-grid>div+div{padding:12px 0 0;border-left:0;border-top:1px solid #dce3f0}.summary-grid>div{display:grid;grid-template-columns:90px 1fr;gap:2px 10px}.summary-grid em{grid-column:2}.toc{padding:18px}.article-section{padding:21px 0}.section-heading{gap:9px}#qrator-guide h2{font-size:20px}.qgv-promo{padding:23px 19px}.qgv-promo h2{font-size:21px}}
-</style></head><body><article id="qrator-guide">
-<header class="qge-header"><div class="eyebrow"><span class="tag">등기 가이드</span><span>큐레이터 실무 콘텐츠</span></div><h1>새 등기 가이드 제목</h1><p class="subhead">이 글에서 안내할 내용을 한두 문장으로 소개해 주세요.</p><div class="meta"><span>작성자 큐레이터</span><span class="meta-dot"></span><time>작성일 입력</time></div></header>
-<div class="summary"><p class="summary-title">세 줄 요약</p><div class="summary-grid"><div><small>핵심 내용 1</small><strong>핵심 내용을 입력해 주세요</strong><em>독자가 기억할 기준을 간단히 정리해 주세요</em></div><div><small>핵심 내용 2</small><strong>먼저 확인할 내용을 입력해 주세요</strong><em>조건이나 예외 사항을 간단히 정리해 주세요</em></div><div><small>핵심 내용 3</small><strong>신청 준비 내용을 입력해 주세요</strong><em>기한이나 준비 순서를 간단히 정리해 주세요</em></div></div></div>
-<nav class="toc"><h2>이 글의 목차</h2><ol><li><a href="#qgv-section-1">변경 내용을 먼저 확인해요</a></li><li><a href="#qgv-section-2">회사에서 결정할 내용을 정리해요</a></li><li><a href="#qgv-section-3">준비 서류와 절차를 살펴봐요</a></li><li><a href="#qgv-section-4">신청 기한과 비용을 확인해요</a></li><li><a href="#qgv-faq">자주 묻는 질문</a></li></ol></nav>
-<section class="article-section" id="qgv-section-1"><div class="section-heading"><span class="section-num">01</span><h2>변경 내용을 먼저 확인해요</h2></div><p>어떤 변경이 필요한지, 현재 상태와 변경 후 내용을 비교해 설명해 주세요.</p><p>독자가 준비 전에 확인해야 할 기준과 예외 사항을 여기에 정리해 주세요.</p></section>
-<section class="article-section" id="qgv-section-2"><div class="section-heading"><span class="section-num">02</span><h2>회사에서 결정할 내용을 정리해요</h2></div><p>정관, 이사회 또는 주주총회 등 회사의 의사결정 절차를 주제에 맞게 설명해 주세요.</p><div class="note"><p>확인 포인트나 실수하기 쉬운 내용을 짧게 강조해 주세요.</p></div></section>
-<section class="article-section" id="qgv-section-3"><div class="section-heading"><span class="section-num">03</span><h2>준비 서류와 절차를 살펴봐요</h2></div><p>필요한 서류와 진행 순서를 단계별로 설명해 주세요.</p><div class="table-wrap"><table><thead><tr><th>구분</th><th>확인할 내용</th></tr></thead><tbody><tr><td>준비 항목</td><td>필요한 서류나 정보를 입력해 주세요</td></tr><tr><td>진행 순서</td><td>신청 전후 절차를 입력해 주세요</td></tr></tbody></table></div></section>
-<section class="article-section" id="qgv-section-4"><div class="section-heading"><span class="section-num">04</span><h2>신청 기한과 비용을 확인해요</h2></div><p>기한 계산 기준, 등록면허세 등 비용과 납부 시점을 정확한 근거와 함께 작성해 주세요.</p><div class="note"><p>법령이나 회사 상황에 따라 달라질 수 있는 부분을 안내해 주세요.</p></div></section>
-<section class="qgv-faq" id="qgv-faq"><h2>자주 묻는 질문</h2><details><summary>어떤 경우에 이 등기를 신청하나요?</summary><p>질문에 대한 답변을 간단하고 정확하게 작성해 주세요.</p></details><details><summary>신청 전에 무엇을 확인해야 하나요?</summary><p>필요한 확인 사항과 예외를 작성해 주세요.</p></details><details><summary>신청 기한은 언제까지인가요?</summary><p>기산일과 기한을 근거에 맞춰 작성해 주세요.</p></details></section>
-<section class="qgv-bridge"><h2>등기 준비의 핵심</h2><p>이 글의 핵심을 한 문장으로 정리해 주세요.</p></section>
-<aside class="qgv-promo"><span class="qgv-brand">Qrator.</span><h2>큐레이터에서 변경등기를 준비해 보세요</h2><p>변경 내용을 입력하고 안내에 따라 서류를 준비하는 방법을 간단히 소개해 주세요.</p><a class="qgv-apply" href="/">큐레이터 이용 안내 <span aria-hidden="true"> →</span></a></aside>
-<div class="qgv-sources"><p>이 글은 일반적인 안내이며, 회사 형태와 구체적인 사실관계에 따라 절차가 달라질 수 있습니다. 법령과 공식 자료의 최신 내용을 확인해 주세요.</p><details><summary>참고 법령 및 공식 자료</summary><ul><li>참고 법령·공식 자료 이름과 URL을 입력해 주세요.</li></ul></details></div>
+const starterHTML=`<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>등기 가이드 | 큐레이터</title><meta name="description" content="등기 가이드 설명을 입력해 주세요"><meta property="og:type" content="article"><style>@import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css');
+#qrator-blog{--qb-blue:#1e4bb6;--qb-ink:#1e1e22;--qb-text:#404040;--qb-muted:#737780;--qb-line:#e8e8eb;box-sizing:border-box;width:100%;max-width:788px;margin:0 auto;padding:48px 24px 80px;background:#fff;color:var(--qb-text);font:400 17px/1.6 "Qrator Pretendard",Pretendard,-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;letter-spacing:-.02em;overflow-wrap:break-word}
+#qrator-blog *,#qrator-blog *::before,#qrator-blog *::after{box-sizing:border-box}
+#qrator-blog h1,#qrator-blog h2,#qrator-blog h3,#qrator-blog p,#qrator-blog figure{margin:0}
+#qrator-blog a{color:var(--qb-blue);text-decoration:none;text-underline-offset:4px}
+#qrator-blog a:hover{text-decoration:underline}
+#qrator-blog a:focus-visible,#qrator-blog summary:focus-visible{outline:2px solid var(--qb-blue);outline-offset:5px}
+#qrator-blog strong,#qrator-blog b{font-weight:700}
+#qrator-blog .qbx-back{display:inline-flex;align-items:center;min-height:44px;gap:8px;margin-bottom:12px;font-size:15px;font-weight:600}
+#qrator-blog .qbx-back span{color:#969ba5;font-weight:400}
+#qrator-blog h1{font-size:32px;line-height:1.4;font-weight:700;letter-spacing:-.035em;word-break:keep-all}
+#qrator-blog .subhead{margin-top:12px;color:#62666e;font-size:17px;line-height:1.6;word-break:keep-all}
+#qrator-blog .qbe-author{display:flex;align-items:center;gap:12px;margin-top:24px;padding-bottom:22px;border-bottom:1px solid var(--qb-line);font-size:14px;line-height:1.6}
+#qrator-blog .qbe-avatar{display:grid;place-items:center;flex:0 0 40px;height:40px;border-radius:50%;background:#edf2ff;color:var(--qb-blue);font-size:24px;font-weight:750}
+#qrator-blog .qbe-author time{display:block;color:var(--qb-muted);font-size:13px;margin-top:2px}
+#qrator-blog .qbe-cover{margin:20px 0 28px}
+#qrator-blog .qbe-cover img{display:block;width:100%;height:auto}
+#qrator-blog .qbe-intro p+ p{margin-top:16px}
+#qrator-blog .article-section{margin-top:60px;scroll-margin-top:24px}
+#qrator-blog h2{font-size:32px;line-height:1.5;font-weight:600;letter-spacing:-.035em;color:var(--qb-ink);word-break:keep-all;margin-bottom:16px}
+#qrator-blog h3{font-size:21px;font-weight:650;line-height:1.5;color:var(--qb-ink);margin:28px 0 10px;word-break:keep-all}
+#qrator-blog .article-section p+ p{margin-top:14px}
+#qrator-blog .article-section ul,#qrator-blog .article-section ol{margin:18px 0;padding-left:25px}
+#qrator-blog .article-section li{padding-left:3px;margin-top:8px}
+#qrator-blog .article-section li:first-child{margin-top:0}
+#qrator-blog .qbv-flow li{padding-left:5px;margin-top:14px}
+#qrator-blog .qbv-flow li::marker{font-weight:700;color:var(--qb-blue)}
+#qrator-blog .qbv-flow li strong{color:var(--qb-ink)}
+#qrator-blog .qbv-flow li span{display:block;margin-top:3px}
+#qrator-blog .note{margin:24px 0;padding:18px 22px;border-left:3px solid var(--qb-blue);background:#f6f8fc;font-size:16px;line-height:1.75}
+#qrator-blog .note strong{color:#284b92}
+#qrator-blog .source{font-size:13px;line-height:1.7;color:var(--qb-muted);margin-top:18px!important}
+#qrator-blog .source a{color:var(--qb-muted);text-decoration:underline}
+#qrator-blog .qbx-vote{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:18px;margin:24px 0;padding:24px 20px;border-top:1px solid var(--qb-line);border-bottom:1px solid var(--qb-line);text-align:center}
+#qrator-blog .qbx-vote strong{display:block;font-size:32px;line-height:1.4;color:var(--qb-blue)}
+#qrator-blog .qbx-vote span{display:block;font-size:15px;margin-top:6px}
+#qrator-blog .qbx-vote>b{font-size:14px;font-weight:400;color:var(--qb-muted)}
+#qrator-blog .table-wrap{margin:22px 0}
+#qrator-blog table{width:100%;border-collapse:collapse;table-layout:fixed;text-align:left;font-size:16px;line-height:1.7}
+#qrator-blog th,#qrator-blog td{padding:14px 16px;border:1px solid #dedfe3;vertical-align:top;overflow-wrap:anywhere}
+#qrator-blog thead th{background:#f6f7f9;color:var(--qb-ink);font-weight:600}
+#qrator-blog th:first-child{width:28%}
+#qrator-blog tbody th{font-weight:600}
+#qrator-blog .qbv-faq{margin-top:60px}
+#qrator-blog .qbv-faq details{border-bottom:1px solid var(--qb-line);padding:20px 0}
+#qrator-blog .qbv-faq summary{position:relative;display:flex;align-items:center;min-height:30px;list-style:none;padding-right:32px;font-size:18px;font-weight:600;color:var(--qb-ink);cursor:pointer}
+#qrator-blog .qbv-faq summary::-webkit-details-marker{display:none}
+#qrator-blog .qbv-faq summary::after{content:"+";position:absolute;right:4px;font-size:24px;color:var(--qb-muted);font-weight:400}
+#qrator-blog .qbv-faq details[open] summary::after{content:"−"}
+#qrator-blog .qbv-faq details p{margin-top:12px;line-height:1.7}
+#qrator-blog .qbv-bridge{margin:60px 0 24px}
+#qrator-blog .qbv-bridge p+ p{margin-top:14px}
+#qrator-blog .qbv-promo{padding:32px;background:#f3f6fd;border:1px solid #e4eaf7;border-radius:4px}
+#qrator-blog .qbv-brand{display:block;width:99px;height:auto;margin-bottom:22px}
+#qrator-blog .qbv-promo h3{font-size:23px;margin:0 0 12px}
+#qrator-blog .qbv-promo p{font-size:16px;line-height:1.75}
+#qrator-blog .qbv-service-steps{display:flex;flex-wrap:wrap;gap:8px 26px;margin:20px 0 24px;padding-left:20px;font-size:14px}
+#qrator-blog .qbv-apply{display:inline-flex;align-items:center;justify-content:center;gap:28px;min-height:48px;padding:12px 24px;background:var(--qb-blue);color:#fff;border-radius:4px;font-size:16px;font-weight:600}
+#qrator-blog .qbv-apply:hover{background:#173d96;text-decoration:none}
+#qrator-blog .qbv-sources{border-top:1px solid var(--qb-line);margin-top:40px;padding-top:24px;font-size:13px;line-height:1.8;color:var(--qb-muted)}
+#qrator-blog .qbv-sources details{margin-top:14px}
+#qrator-blog .qbv-sources summary{cursor:pointer;min-height:36px;padding:6px 0;color:#555b66}
+#qrator-blog .qbv-sources ul{padding-left:20px;margin:8px 0}
+#qrator-blog .qbv-sources li{margin-top:5px}
+#qrator-blog .qbv-sources a{color:#626a79;text-decoration:underline}
+#qrator-blog .qbv-disclosure h2{font-size:15px;line-height:1.6;font-weight:600;margin:0 0 10px;color:#555b66}
+#qrator-blog .qbv-disclosure p{line-height:1.9}
+#qrator-blog .qbv-disclosure .qbv-revision{margin-top:10px;font-size:12px}
+@media(max-width:600px){#qrator-blog{padding:24px 20px 48px;font-size:16px;line-height:1.7}#qrator-blog h1{font-size:28px}#qrator-blog h2{font-size:25px;line-height:1.5}#qrator-blog h3{font-size:20px}#qrator-blog .subhead{font-size:16px}#qrator-blog .article-section,#qrator-blog .qbv-faq{margin-top:44px}#qrator-blog .qbv-bridge{margin-top:44px}#qrator-blog .note{padding:16px;font-size:15px}#qrator-blog .qbx-vote{gap:10px;padding:20px 0}#qrator-blog .qbx-vote strong{font-size:27px}#qrator-blog .qbx-vote span{font-size:13px}#qrator-blog table{font-size:14px}#qrator-blog th,#qrator-blog td{padding:12px 10px}#qrator-blog th:first-child{width:30%}#qrator-blog .qbv-faq summary{font-size:17px}#qrator-blog .qbv-promo{padding:24px 20px}#qrator-blog .qbv-apply{display:flex;width:100%}#qrator-blog .qbv-service-steps{display:block}#qrator-blog .qbv-service-steps li+li{margin-top:6px}}
+@media print{#qrator-blog{max-width:none;padding:0}#qrator-blog .qbx-back,#qrator-blog .qbe-cover,#qrator-blog .qbv-apply{display:none}#qrator-blog .article-section{margin-top:28px}#qrator-blog h2,#qrator-blog h3{break-after:avoid}#qrator-blog .note,#qrator-blog .qbx-vote,#qrator-blog .qbv-promo{break-inside:avoid}#qrator-blog details::details-content{display:block}#qrator-blog .qbv-faq details p{display:block}}
+
+/* Compact, optional in-article navigation. No JavaScript required. */
+#qrator-blog .qbv-toc{margin:28px 0 0;padding:22px 24px;border:1px solid #e4eaf7;border-radius:4px;background:#f6f8fc}
+#qrator-blog .qbv-toc h2{margin:0 0 10px;font-size:18px;line-height:1.5;font-weight:650;letter-spacing:-.02em}
+#qrator-blog .qbv-toc ol{margin:0;padding-left:23px;font-size:16px;line-height:1.6}
+#qrator-blog .qbv-toc li{padding-left:2px;color:#6c7791}
+#qrator-blog .qbv-toc li+li{margin-top:3px}
+#qrator-blog .qbv-toc a{display:inline-block;padding:5px 0;font-weight:500}
+@media(max-width:600px){#qrator-blog .qbv-toc{margin-top:24px;padding:18px 20px}#qrator-blog .qbv-toc ol{font-size:15px}#qrator-blog .qbv-toc a{padding:4px 0}}
+@media print{#qrator-blog .qbv-toc{display:none}}
+
+/* Summary and verified product-screen example. */
+#qrator-blog .qbv-summary{margin:28px 0 0;padding:20px 24px;border:1px solid #e4eaf7;border-left:3px solid var(--qb-blue);border-radius:4px;background:#f6f8fc}
+#qrator-blog .qbv-summary h2{margin:0 0 12px;font-size:18px;line-height:1.5;font-weight:650;letter-spacing:-.02em}
+#qrator-blog .qbv-summary ul{margin:0;padding-left:20px;font-size:16px;line-height:1.65}
+#qrator-blog .qbv-summary li+li{margin-top:8px}
+#qrator-blog .qbv-summary li::marker{color:var(--qb-blue)}
+#qrator-blog .qbv-check-steps{margin:18px 0 24px;padding-left:22px;font-size:16px;line-height:1.75}
+#qrator-blog .qbv-check-steps li+li{margin-top:6px}
+#qrator-blog .qbv-service-screen{margin:24px 0}
+#qrator-blog .qbv-service-screen a{display:block}
+#qrator-blog .qbv-service-screen img{display:block;width:100%;height:auto;background:#fff;border:1px solid #dedfe3;border-radius:4px}
+#qrator-blog .qbv-service-screen figcaption{margin-top:10px;color:var(--qb-muted);font-size:13px;line-height:1.6}
+#qrator-blog .qbv-service-screen+p{margin-bottom:24px}
+@media(max-width:600px){#qrator-blog .qbv-summary{margin-top:24px;padding:18px 20px}#qrator-blog .qbv-summary ul{font-size:15px}#qrator-blog .qbv-check-steps{font-size:15px}}
+#qrator-blog .qbe-cover-placeholder{display:grid;place-items:center;aspect-ratio:1256/760;border:1px dashed #cfd5df;background:#f6f8fc;color:#737780;text-align:center;padding:24px}#qrator-blog .qbe-cover-placeholder p{font-size:15px;line-height:1.7}</style></head><body style="margin:0;background:#fff">
+<article id="qrator-blog" aria-labelledby="qbv-title">
+<header><a class="qbx-back" href="./index.html"><span>블로그</span><span aria-hidden="true">›</span><span data-template-category>상호 변경</span></a>
+<h1 id="qbv-title">새 등기 가이드 제목</h1><p class="subhead">이 글에서 안내할 내용을 한두 문장으로 소개해 주세요.</p>
+<div class="qbe-author"><span class="qbe-avatar" aria-hidden="true">Q.</span><div><span>작성자 </span><strong>큐레이터</strong><time>작성일 입력</time></div></div></header>
+<figure class="qbe-cover"><div class="qbe-cover-placeholder" data-studio-cover-placeholder="true"><p>대표 이미지 영역<br>화면 편집에서 이미지 버튼으로 삽입해 주세요.</p></div></figure>
+<div class="qbe-intro"><p>독자가 겪는 상황이나 궁금증을 짧게 꺼내고, 이 글에서 확인할 내용을 자연스럽게 소개해 주세요.</p></div>
+<aside class="qbv-summary" aria-labelledby="qbv-summary-title"><h2 id="qbv-summary-title">세 줄 요약</h2><ul><li>첫 번째 핵심 내용을 한 문장으로 정리해 주세요.</li><li>두 번째로 알아둘 기준이나 예외를 정리해 주세요.</li><li>마지막으로 독자가 준비하거나 확인할 내용을 정리해 주세요.</li></ul></aside>
+<nav class="qbv-toc" aria-labelledby="qbv-toc-title"><h2 id="qbv-toc-title">이 글의 목차</h2><ol><li><a href="#qbv-section-1">첫 번째 확인 항목</a></li><li><a href="#qbv-section-2">두 번째 확인 항목</a></li><li><a href="#qbv-section-3">준비 서류와 절차</a></li><li><a href="#qbv-section-4">기한과 비용</a></li><li><a href="#qbv-faq">자주 묻는 질문</a></li></ol></nav>
+<section class="article-section" id="qbv-section-1" aria-labelledby="heading-1"><h2 id="heading-1">1. 첫 번째 확인 항목</h2><p>이 항목에서 독자가 확인해야 할 내용을 쉬운 말로 설명해 주세요.</p><p>구체적인 사례나 비교 기준이 있다면 이어서 적어 주세요.</p><aside class="note"><p>놓치기 쉬운 기준이나 예외 사항을 여기에 강조해 주세요.</p></aside><p class="source">참고: 관련 법령·공식 자료 이름과 링크를 추가해 주세요.</p></section>
+<section class="article-section" id="qbv-section-2" aria-labelledby="heading-2"><h2 id="heading-2">2. 두 번째 확인 항목</h2><p>필요한 조건과 적용 범위를 설명해 주세요.</p><p>회사별로 달라질 수 있는 점은 어떤 정보를 확인해야 하는지 함께 안내해 주세요.</p><p class="source">참고: 관련 법령·공식 자료 이름과 링크를 추가해 주세요.</p></section>
+<section class="article-section" id="qbv-section-3" aria-labelledby="heading-3"><h2 id="heading-3">3. 준비 서류와 절차</h2><p>준비할 자료와 신청 순서를 단계별로 정리해 주세요.</p><div class="table-wrap"><table aria-label="준비 항목 정리"><thead><tr><th scope="col">구분</th><th scope="col">확인할 내용</th></tr></thead><tbody><tr><th scope="row">준비 항목</th><td>서류나 정보를 입력해 주세요.</td></tr><tr><th scope="row">진행 순서</th><td>신청 전후 절차를 입력해 주세요.</td></tr></tbody></table></div><p>준비 과정에서 확인이 필요한 내용을 추가해 주세요.</p></section>
+<section class="article-section" id="qbv-section-4" aria-labelledby="heading-4"><h2 id="heading-4">4. 신청 기한과 비용</h2><p>신청 기한의 기준일과 비용을 정확한 근거와 함께 안내해 주세요.</p><p class="source">참고: 최신 법령과 공식 안내를 확인하고 링크를 추가해 주세요.</p></section>
+<section class="qbv-faq" id="qbv-faq" aria-labelledby="faq-title"><h2 id="faq-title">자주 묻는 질문</h2><details><summary>첫 번째 자주 묻는 질문을 입력해 주세요.</summary><p>질문에 대한 답을 핵심부터 간단히 작성해 주세요.</p></details><details><summary>두 번째 자주 묻는 질문을 입력해 주세요.</summary><p>적용 조건이나 예외가 있다면 함께 작성해 주세요.</p></details><details><summary>신청 기한은 언제까지인가요?</summary><p>기산일과 기한을 근거에 맞춰 작성해 주세요.</p></details></section>
+<section class="qbv-bridge"><h2>마무리 제목을 입력해 주세요</h2><p>앞에서 설명한 핵심을 짧게 정리하고 다음에 확인할 내용을 안내해 주세요.</p><p>관련된 등기 가이드나 큐레이터 이용 방법을 소개해 주세요.</p></section>
+<aside class="qbv-promo" aria-label="큐레이터 서비스 소개"><img class="qbv-brand" src="data:image/svg+xml;base64,PHN2ZyBwcmVzZXJ2ZUFzcGVjdFJhdGlvPSJub25lIiBvdmVyZmxvdz0idmlzaWJsZSIgc3R5bGU9ImRpc3BsYXk6IGJsb2NrOyIgd2lkdGg9Ijk4LjM1NjYiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCA5OC4zNTY2IDI0IiBmaWxsPSJub25lIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPgo8ZyBpZD0iR3JvdXAgMjg5OTU1Ij4KPHBhdGggaWQ9IlZlY3RvciIgZD0iTTQ1LjcxOSAyMy45OTcxQzQ0LjYxMjUgMjMuOTk3MSA0My41Njg0IDIzLjc4MjkgNDIuNTg2OSAyMy4zNTQ2QzQxLjYyMzEgMjIuOTA4NCA0MC43NzU0IDIyLjMwMTYgNDAuMDQzNyAyMS41MzQyQzM5LjMxMTkgMjAuNzQ4OSAzOC43MzE5IDE5Ljg0NzYgMzguMzAzNiAxOC44MzA0QzM3Ljg5MzEgMTcuNzk1MiAzNy42ODc4IDE2LjY5NzYgMzcuNjg3OCAxNS41Mzc2QzM3LjY4NzggMTQuMzc3NSAzNy44OTMxIDEzLjI4ODkgMzguMzAzNiAxMi4yNzE2QzM4LjczMTkgMTEuMjM2NCAzOS4zMTE5IDEwLjMzNTIgNDAuMDQzNyA5LjU2Nzc1QzQwLjc3NTQgOC43ODI0OCA0MS42MjMxIDguMTc1NjggNDIuNTg2OSA3Ljc0NzM1QzQzLjU2ODQgNy4zMDExNyA0NC42MTI1IDcuMDc4MDkgNDUuNzE5IDcuMDc4MDlDNDYuNzU0MSA3LjA3ODA5IDQ3LjcgNy4yNjU0OCA0OC41NTY3IDcuNjQwMjdDNDkuNDEzMyA3Ljk5NzIxIDUwLjE0NTEgOC40OTY5MiA1MC43NTE5IDkuMTM5NDJWNy41MDY0Mkg1NC43Njc1VjIzLjU2ODdINTAuNzUxOVYyMS45MzU3QzUwLjE0NTEgMjIuNTc4MiA0OS40MTMzIDIzLjA4NjkgNDguNTU2NyAyMy40NjE3QzQ3LjcgMjMuODE4NiA0Ni43NTQxIDIzLjk5NzEgNDUuNzE5IDIzLjk5NzFaTTQ2LjI4MTIgMTkuOTAxMkM0Ny4wNjY1IDE5LjkwMTIgNDcuNzgwMyAxOS43MDQ5IDQ4LjQyMjggMTkuMzEyMkM0OS4wNjUzIDE4LjkxOTYgNDkuNTc0IDE4LjM5MzEgNDkuOTQ4OCAxNy43MzI4QzUwLjM0MTQgMTcuMDcyNCA1MC41Mzc3IDE2LjM0MDcgNTAuNTM3NyAxNS41Mzc2QzUwLjUzNzcgMTQuNzM0NSA1MC4zNDE0IDE0LjAwMjcgNDkuOTQ4OCAxMy4zNDI0QzQ5LjU3NCAxMi42ODIxIDQ5LjA2NTMgMTIuMTU1NiA0OC40MjI4IDExLjc2MjlDNDcuNzgwMyAxMS4zNzAzIDQ3LjA2NjUgMTEuMTc0IDQ2LjI4MTIgMTEuMTc0QzQ1LjQ5NTkgMTEuMTc0IDQ0Ljc4MiAxMS4zNzAzIDQ0LjEzOTUgMTEuNzYyOUM0My40OTcxIDEyLjE1NTYgNDIuOTc5NSAxMi42ODIxIDQyLjU4NjkgMTMuMzQyNEM0Mi4yMTIxIDE0LjAwMjcgNDIuMDI0NyAxNC43MzQ1IDQyLjAyNDcgMTUuNTM3NkM0Mi4wMjQ3IDE2LjM0MDcgNDIuMjEyMSAxNy4wNzI0IDQyLjU4NjkgMTcuNzMyOEM0Mi45Nzk1IDE4LjM5MzEgNDMuNDk3MSAxOC45MTk2IDQ0LjEzOTUgMTkuMzEyMkM0NC43ODIgMTkuNzA0OSA0NS40OTU5IDE5LjkwMTIgNDYuMjgxMiAxOS45MDEyWiIgZmlsbD0iIzFFNEJCNiIvPgo8cGF0aCBpZD0iVmVjdG9yXzIiIGQ9Ik04Ny41MjMyIDIzLjU3MTVWNi42ODAwOEg5Mi4xNzA4VjkuMTM1MjNIOTIuMzAxN0M5My4xNjkgNy4zNTExNiA5NC43ODkxIDYuMjIxNzkgOTYuNzIwMiA2LjIyMTc5Qzk3LjI2MDIgNi4yMjE3OSA5Ny43ODM4IDYuMzE5OTkgOTguMzU2NiA2LjQ4MzY3VjEwLjkwMjlDOTcuNjUyOSAxMC43MjI5IDk2Ljk0OTMgMTAuNjI0NyA5Ni4zNjAxIDEwLjYwODNDOTMuNjYgMTAuNjI0NyA5Mi4xODcxIDEyLjQ1NzkgOTIuMTcwOCAxNS44MTMyVjIzLjU3MTVIODcuNTIzMloiIGZpbGw9IiMxRTRCQjYiLz4KPHBhdGggaWQ9IlZlY3Rvcl8zIiBkPSJNNzcuNDgwNiAyNEM3Mi42NDQ0IDI0IDY5LjAwNTUgMjAuMzYxMiA2OS4wMjExIDE1LjU0MDVDNjkuMDA1NSAxMC43MTk4IDcyLjY0NDQgNy4wODEwMiA3Ny40ODA2IDcuMDgxMDJDODIuMjg1NyA3LjA4MTAyIDg1LjkyNDUgMTAuNzE5OCA4NS45NDAxIDE1LjU0MDVDODUuOTI0NSAyMC4zNjEyIDgyLjI4NTcgMjQgNzcuNDgwNiAyNFpNNzcuNDgwNiAxOS45NTY5Qzc5LjkyMiAxOS45NTY5IDgxLjY2MzcgMTguMTM3NCA4MS42NzkyIDE1LjU0MDVDODEuNjYzNyAxMi45NDM2IDc5LjkyMiAxMS4xMjQyIDc3LjQ4MDYgMTEuMTI0MkM3NS4wMDggMTEuMTI0MiA3My4yNjY0IDEyLjk0MzYgNzMuMjgxOSAxNS41NDA1QzczLjI2NjQgMTguMTM3NCA3NS4wMDggMTkuOTU2OSA3Ny40ODA2IDE5Ljk1NjlaIiBmaWxsPSIjMUU0QkI2Ii8+CjxwYXRoIGlkPSJWZWN0b3JfNCIgZD0iTTU2LjUyOTggOS45MzI2NFY2LjMxOTg0SDU5LjMyODlWMi4xNTM3M0g2My45NTA3VjYuMzE5ODRINjcuODU2NFY5LjkzMjY0SDYzLjk1MDdWMTYuODY1M0M2My45MzQ0IDE4LjQ5MjcgNjQuNTg1NCAxOS4xNzYyIDY2LjEzMTQgMTkuMTc2MkM2Ni42NTIyIDE5LjE3NjIgNjcuMjIxOCAxOS4wOTQ4IDY3Ljg1NjQgMTguOTE1OFYyMy4xMTQ1QzY3LjA5MTYgMjMuMzkxMSA2Ni4xOTY1IDIzLjU3MDIgNjUuMTg3NSAyMy41NzAyQzYxLjQxMiAyMy41NzAyIDU5LjMxMjYgMjEuMjU5MyA1OS4zMjg5IDE3LjEyNTdWOS45MzI2NEg1Ni41Mjk4WiIgZmlsbD0iIzFFNEJCNiIvPgo8cGF0aCBpZD0iVmVjdG9yXzUiIGQ9Ik0yNi43MzkgMjMuNTcwNFY2LjY4MTI3SDMxLjM4NzJWOS4xMzYwOEgzMS41MTgxQzMyLjM4NTYgNy4zNTIyNSAzNC4wMDU5IDYuMjIzMDQgMzUuOTM3MiA2LjIyMzA0QzM2LjQ3NzMgNi4yMjMwNCAzNy4wMDEgNi4zMjEyMyAzNy41NzM5IDYuNDg0ODlWMTAuOTAzNUMzNi44NzAxIDEwLjcyMzUgMzYuMTY2MyAxMC42MjUzIDM1LjU3NzEgMTAuNjA5QzMyLjg3NjYgMTAuNjI1MyAzMS40MDM1IDEyLjQ1ODMgMzEuMzg3MiAxNS44MTMyVjIzLjU3MDRIMjYuNzM5WiIgZmlsbD0iIzFFNEJCNiIvPgo8ZyBpZD0iTGF5ZXJfMSIgY2xpcC1wYXRoPSJ1cmwoI2NsaXAwXzBfNTIyKSI+CjxwYXRoIGlkPSJWZWN0b3JfNiIgZD0iTTI0LjIwNCAyMy41NzEzSDE5LjU4NTdMMTguMzQ3NCAyMS41NzY1QzE3Ljk1NDkgMjEuODQwMyAxNy41NDU3IDIyLjA4MSAxNy4xMjE4IDIyLjI5NjFWMTcuNDIxOUMxNy43ODc5IDE2Ljc5MTIgMTguMzQyIDE2LjA0MzYgMTguNzUxMSAxNS4yMTJDMTkuMjYxIDE0LjE3ODUgMTkuNTQ2OSAxMy4wMTU0IDE5LjU0NjkgMTEuNzg1NEMxOS41NDY5IDcuNDk4NjkgMTYuMDcxNiA0LjAyMzQzIDExLjc4NTQgNC4wMjM0M0M3LjQ5OTE3IDQuMDIzNDMgNC4wMjM0MyA3LjQ5ODY5IDQuMDIzNDMgMTEuNzg1NEM0LjAyMzQzIDE0LjMwNDMgNS4yMjI5NCAxNi41NDI3IDcuMDgyMTQgMTcuOTYwOFYyMi41OTUzQzIuOTEzOCAyMC43NzkzIC02LjM3NTk2ZS0wNiAxNi42MjI4IC02LjM3NTk2ZS0wNiAxMS43ODU0Qy02LjM3NTk2ZS0wNiA1LjI3NjQ5IDUuMjc2NDggMCAxMS43ODU0IDBDMTguMjk0MyAwIDIzLjU3MDggNS4yNzY0OSAyMy41NzA4IDExLjc4NTRDMjMuNTcwOCAxNC40MTgyIDIyLjcwNzMgMTYuODQ5MiAyMS4yNDg0IDE4LjgxMTFMMjQuMjA0IDIzLjU3MTNaIiBmaWxsPSIjMUU0QkI2Ii8+CjxnIGlkPSJHcm91cCI+CjxwYXRoIGlkPSJWZWN0b3JfNyIgZD0iTTExLjM3MDMgOS4zMjkxN1YyMy41NjMyQzkuODUwMDcgMjMuNTEwNyA4LjQwMjk5IDIzLjE3MDMgNy4wODIxNSAyMi41OTQ2VjEyLjIzOUwxMS4zNzAzIDkuMzI5MTdaIiBmaWxsPSJ1cmwoI3BhaW50MF9saW5lYXJfMF81MjIpIi8+CjxwYXRoIGlkPSJWZWN0b3JfOCIgZD0iTTE3LjEyMTggOC45MTI3N1YyMi4yOTYxQzE1LjgxNDIgMjIuOTYxNiAxNC4zNjU3IDIzLjM5MDQgMTIuODMzMSAyMy41MjVWNi4zNDQyN0wxNy4xMjE4IDguOTEyNzdaIiBmaWxsPSJ1cmwoI3BhaW50MV9saW5lYXJfMF81MjIpIi8+CjwvZz4KPC9nPgo8L2c+CjxkZWZzPgo8bGluZWFyR3JhZGllbnQgaWQ9InBhaW50MF9saW5lYXJfMF81MjIiIHgxPSI5LjIyNjI1IiB5MT0iMTMuODIxMiIgeDI9IjkuMjI2MjUiIHkyPSIyMy41ODkyIiBncmFkaWVudFVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+CjxzdG9wIHN0b3AtY29sb3I9IiMwMDVBRTUiLz4KPHN0b3Agb2Zmc2V0PSIxIiBzdG9wLWNvbG9yPSIjMUU0QkI2Ii8+CjwvbGluZWFyR3JhZGllbnQ+CjxsaW5lYXJHcmFkaWVudCBpZD0icGFpbnQxX2xpbmVhcl8wXzUyMiIgeDE9IjE0Ljk5MzYiIHkxPSIxMC45Mjg0IiB4Mj0iMTQuOTc3NCIgeTI9IjIzLjU1NjQiIGdyYWRpZW50VW5pdHM9InVzZXJTcGFjZU9uVXNlIj4KPHN0b3Agc3RvcC1jb2xvcj0iIzAwNUFFNSIvPgo8c3RvcCBvZmZzZXQ9IjEiIHN0b3AtY29sb3I9IiMxRTRCQjYiLz4KPC9saW5lYXJHcmFkaWVudD4KPGNsaXBQYXRoIGlkPSJjbGlwMF8wXzUyMiI+CjxyZWN0IHdpZHRoPSIyNC4yMDQiIGhlaWdodD0iMjMuNTcxMyIgZmlsbD0id2hpdGUiLz4KPC9jbGlwUGF0aD4KPC9kZWZzPgo8L3N2Zz4K" width="99" height="24" alt="큐레이터"><h3>큐레이터에서 등기 서류를 준비해 보세요</h3><p>변경 내용을 입력하고 안내에 따라 서류를 준비하는 과정을 간단히 소개해 주세요.</p><ol class="qbv-service-steps"><li>변경 내용 입력</li><li>서류 자동 작성</li><li>신청인이 직접 신청</li></ol><a class="qbv-apply" href="https://www.qrator.kr/registration/select-items">큐레이터 이용 안내 <span aria-hidden="true">→</span></a></aside>
+<footer class="qbv-sources"><section class="qbv-disclosure" aria-labelledby="qbv-disclosure-title"><h2 id="qbv-disclosure-title">콘텐츠 이용 안내</h2><p>이 글은 법인등기 절차에 관한 일반적인 안내입니다. 회사의 정관과 구체적인 사실관계에 따라 필요한 절차가 달라질 수 있으니 관련 법령과 공식 자료를 확인해 주세요.</p><p class="qbv-revision">작성일 및 법령 확인 기준일을 입력해 주세요.</p></section><details><summary>참고 법령 및 공식 자료</summary><ul><li>참고 법령·공식 자료 이름과 URL을 추가해 주세요.</li></ul></details></footer>
 </article></body></html>`;
 function recordFromForm(){
  const r=clone(state.current);
@@ -199,7 +285,7 @@ $('importInput').onchange=guard(async e=>{const files=[...e.target.files];e.targ
 $('downloadSelected').onclick=guard(async()=>download(await fetchSelected([...state.selected])));
 $('downloadReady').onclick=guard(async()=>download(await fetchSelected(state.items.filter(x=>x.status==='completed').map(x=>x.slug))));
 $('completedSelected').onclick=guard(()=>batchStatus('completed'));$('privateSelected').onclick=guard(()=>batchStatus('private'));
-$('editorForm').onsubmit=e=>e.preventDefault();$('editorForm').oninput=e=>{markDirty();if(e.target.id==='editTitle')$('titleLength').textContent=e.target.value.length+' / 100';};
+$('editorForm').onsubmit=e=>e.preventDefault();$('editorForm').oninput=e=>{markDirty();if(e.target.id==='editTitle')$('titleLength').textContent=e.target.value.length+' / 100';if(!state.current?.revision){const doc=$('visualEditor').contentDocument;const title=doc?.querySelector('#qbv-title');const subhead=doc?.querySelector('.subhead');const category=doc?.querySelector('[data-template-category]');if(title&&e.target.id==='editTitle')title.textContent=e.target.value||'새 등기 가이드 제목';if(subhead&&e.target.id==='editSummary')subhead.textContent=e.target.value||'이 글에서 안내할 내용을 한두 문장으로 소개해 주세요.';if(category&&e.target.id==='editCategory')category.textContent=e.target.value;}};
 $('saveButton').onclick=guard(save);$('saveBottom').onclick=guard(save);
 $('htmlEditor').oninput=markDirty;
 document.querySelectorAll('[data-mode]').forEach(b=>b.onclick=guard(()=>setMode(b.dataset.mode)));
