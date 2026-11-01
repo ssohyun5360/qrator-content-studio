@@ -107,6 +107,7 @@ export function editedHTML(doc,metadata){
   for(const attr of ['src','href','poster']){const key='data-studio-original-'+attr;if(node.hasAttribute(key)){node.setAttribute(attr,node.getAttribute(key));node.removeAttribute(key);}}
  }
  clone.querySelector('body')?.removeAttribute('contenteditable');clone.querySelector('body')?.removeAttribute('spellcheck');
+ clone.querySelectorAll('[data-studio-text-editable]').forEach(node=>{node.removeAttribute('data-studio-text-editable');node.removeAttribute('contenteditable');node.removeAttribute('spellcheck');node.classList.remove('qrator-text-editable');if(!node.className)node.removeAttribute('class');});
  const title=clone.querySelector('title');if(title)title.textContent=metadata.title+' | 큐레이터';
  const h1=clone.querySelector('h1');if(h1)h1.textContent=metadata.title;
  const description=clone.querySelector('meta[name="description"]');if(description)description.content=metadata.seoDescription||metadata.summary;
