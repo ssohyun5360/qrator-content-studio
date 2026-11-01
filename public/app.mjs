@@ -59,8 +59,29 @@ function recordFromForm(){
 function loadVisual(){
  state.editorReady=false;
  $('visualEditor').onload=()=>{
-  try{const doc=$('visualEditor').contentDocument;doc.body.contentEditable='true';doc.body.spellcheck=false;
-   doc.addEventListener('input',markDirty);doc.addEventListener('click',e=>{if(e.target.closest('a'))e.preventDefault();});doc.addEventListener('submit',e=>e.preventDefault());state.editorReady=true;}catch(e){toast('화면 편집을 열 수 없습니다. HTML 편집을 사용해 주세요.');}
+  try{
+   const doc=$('visualEditor').contentDocument;
+   doc.body.contentEditable=state.mode==='visual'?'true':'false';
+   doc.body.spellcheck=false;
+   if(state.mode==='text'){
+    const excluded='script,style,noscript,svg,math,iframe,object,embed,canvas,video,audio,img,picture,source,input,textarea,select,option,button';
+    for(const el of doc.body.querySelectorAll('*')){
+     if(el.matches(excluded)||el.closest(excluded)||el.children.length)continue;
+     if(!el.textContent.trim())continue;
+     el.contentEditable='true';el.spellcheck=false;el.classList.add('qrator-text-editable');
+    }
+   }
+   doc.addEventListener('input',markDirty);
+   doc.addEventListener('click',e=>{if(e.target.closest('a'))e.preventDefault();});
+   doc.addEventListener('submit',e=>e.preventDefault());
+   const style=doc.createElement('style');
+   style.textContent='.qrator-text-editable{cursor:text}.qrator-text-editable:hover{outline:1px dashed #7baaff;outline-offset:2px}.qrator-text-editable:focus{outline:2px solid #84b4ff;outline-offset:2px}';
+   doc.head.appendChild(style);
+   $('visualEditor').classList.toggle('text-only-mode',state.mode==='text');
+   $('editorBox').classList.toggle('text-mode',state.mode==='text');
+   $('editorHint').textContent=state.mode==='text'?'글자를 클릭해 텍스트만 수정하세요. 이미지와 레이아웃은 유지됩니다.':'기존 HTML 서식 유지';
+   state.editorReady=true;
+  }catch(e){toast('화면 편집을 열 수 없습니다. HTML 편집을 사용해 주세요.');}
  };
  $('visualEditor').srcdoc=previewHTML(state.current);
 }
@@ -76,7 +97,7 @@ function fillEditor(record){
  $('titleLength').textContent=record.title.length+' / 100';$('saveState').textContent=record.revision?'저장됨':'작성 중 · 저장 필요';
  $('revisionInfo').textContent=record.updatedAt?dateTime(record.updatedAt)+' · '+(record.updatedBy||record.author):'';
  $('editBy').textContent='현재 편집자: '+state.user.name;$('deleteButton').hidden=!record.revision;$('historyButton').disabled=!record.history?.length;
- $('visualEditor').hidden=false;$('htmlEditor').hidden=true;document.querySelectorAll('[data-mode]').forEach(b=>b.classList.toggle('mode-active',b.dataset.mode==='visual'));
+ state.mode='visual';$('visualEditor').hidden=false;$('htmlEditor').hidden=true;$('editorBox').classList.remove('text-mode');$('editorHint').textContent='기존 HTML 서식 유지';document.querySelectorAll('[data-mode]').forEach(b=>b.classList.toggle('mode-active',b.dataset.mode==='visual'));
  renderAssets();loadVisual();window.scrollTo(0,0);refreshGithubStatus();
 }
 async function openRecord(slug){if(!ensureLeave())return;const r=await api('get',null,{slug});fillEditor(r);}
@@ -92,7 +113,8 @@ async function save(){
 }
 async function setMode(mode){
  if(state.mode===mode)return;const r=recordFromForm();state.current={...state.current,...r};state.mode=mode;
- $('visualEditor').hidden=mode!=='visual';$('htmlEditor').hidden=mode!=='code';
+ $('visualEditor').hidden=mode==='code';$('htmlEditor').hidden=mode!=='code';
+ $('editorBox').classList.toggle('text-mode',mode==='text');
  if(mode==='code')$('htmlEditor').value=state.current.html;else loadVisual();
  document.querySelectorAll('[data-mode]').forEach(b=>b.classList.toggle('mode-active',b.dataset.mode===mode));
 }
