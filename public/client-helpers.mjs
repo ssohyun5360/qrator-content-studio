@@ -103,6 +103,7 @@ export function previewHTML(record){
 }
 export function editedHTML(doc,metadata){
  const clone=doc.documentElement.cloneNode(true);clone.querySelectorAll('[data-studio-temporary]').forEach(x=>x.remove());
+ clone.querySelectorAll('[data-studio-fixed]').forEach(node=>{node.removeAttribute('data-studio-fixed');node.removeAttribute('contenteditable');});
  clone.querySelectorAll('[data-studio-cover-placeholder]').forEach(node=>{if(!node.querySelector('img'))node.remove();else{node.querySelectorAll('p').forEach(p=>{p.querySelectorAll('img').forEach(img=>node.insertBefore(img,p));p.remove();});node.removeAttribute('data-studio-cover-placeholder');}});
  for(const node of clone.querySelectorAll('[data-studio-original-src],[data-studio-original-href],[data-studio-original-poster]')){
   for(const attr of ['src','href','poster']){const key='data-studio-original-'+attr;if(node.hasAttribute(key)){node.setAttribute(attr,node.getAttribute(key));node.removeAttribute(key);}}
