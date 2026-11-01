@@ -1,5 +1,5 @@
 export const CATEGORIES=['상호 변경','본점 이전','목적 변경','임원 변경','지점 변경'];
-export const STATUS={scheduled:'게시 예정',draft:'작성 중',completed:'작성 완료',delivered:'전달 완료',private:'비공개'};
+export const STATUS={scheduled:'게시 예정',draft:'작성 중',completed:'작성 완료',published:'게시 완료',delivered:'전달 완료',private:'비공개'};
 export function normalizeStatus(status){return status==='needs_changes'||status==='ready'?'completed':status;}
 export function statusLabel(status){return STATUS[normalizeStatus(status)]||'작성 중';}
 export const REVIEW_STATUS={pending:'검토 전',in_review:'검토 중',needs_revision:'수정 필요',complete:'검토 완료'};
