@@ -214,7 +214,7 @@ function fillEditor(record,initialMode='visual'){
 }
 async function openRecord(slug){if(!ensureLeave())return;const r=await api('get',null,{slug});fillEditor(r);}
 function newRecord(){
- if(!ensureLeave())return;fillEditor({slug:'',title:'',category:CATEGORIES[0],summary:'',tags:[],html:starterHTML,entryPath:'index.html',assets:[],author:state.user.name,status:'draft',reviewStatus:'pending',scheduledAt:null,note:'',sourceUrls:[],verification:'',history:[]},'text');
+ if(!ensureLeave())return;fillEditor({slug:'',title:'',category:CATEGORIES[0],summary:'',tags:[],html:starterHTML.replace('작성일 입력',kstDate(new Date())),entryPath:'index.html',assets:[],author:state.user.name,status:'draft',reviewStatus:'pending',scheduledAt:null,note:'',sourceUrls:[],verification:'',history:[]},'text');
 }
 async function save(){
  if(!$('editorForm').reportValidity())return;
