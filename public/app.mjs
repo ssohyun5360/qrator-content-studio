@@ -47,7 +47,33 @@ function renderList(){
 }
 function ensureLeave(){return !state.dirty||confirm('저장하지 않은 변경사항이 있습니다. 목록으로 이동하시겠습니까?');}
 async function showList(){if(!ensureLeave())return;state.dirty=false;$('editorView').hidden=true;$('listView').hidden=false;await loadItems();}
-const starterHTML='<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>등기 가이드 | 큐레이터</title><style>body{margin:0 auto;padding:48px 24px;max-width:836px;font:16px/1.8 Pretendard,-apple-system,sans-serif;color:#171717}h1{font-size:34px;line-height:1.4}h2{font-size:24px;margin-top:40px}table{border-collapse:collapse;width:100%}td,th{border:1px solid #dfe2e8;padding:12px;text-align:left}</style></head><body><article><h1>새 등기 가이드</h1><p>본문을 입력해 주세요.</p></article></body></html>';
+const starterHTML=`<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>등기 가이드 | 큐레이터</title><meta name="description" content="등기 가이드 내용을 입력해 주세요."><style>
+:root{--blue:#2454c6;--ink:#28354b;--sub:#69758a;--line:#e3e8f1;--pale:#f5f7fc}
+*{box-sizing:border-box}body{margin:0;background:#fff;color:var(--ink);font:16px/1.85 Pretendard,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+#qrator-guide{max-width:836px;margin:0 auto;padding:42px 24px 64px}#qrator-guide h1,#qrator-guide h2,#qrator-guide h3,#qrator-guide p,#qrator-guide ol,#qrator-guide ul{margin:0}
+.qge-header{padding:0 0 28px;border-bottom:1px solid var(--line)}.eyebrow{display:flex;gap:10px;align-items:center;color:var(--sub);font-size:13px;margin-bottom:13px}.tag{display:inline-flex;padding:3px 10px;background:#eef3ff;color:var(--blue);border-radius:20px;font-weight:650}
+#qrator-guide h1{font-size:34px;line-height:1.4;letter-spacing:-1px;font-weight:750;word-break:keep-all;margin-bottom:12px}.subhead{font-size:17px;color:#596579;line-height:1.7}.meta{display:flex;gap:10px;align-items:center;margin-top:18px;color:var(--sub);font-size:13px}.meta-dot{width:3px;height:3px;background:#aab2c0;border-radius:50%}
+.summary{padding:25px 22px;margin:22px 0 18px;background:var(--pale);border:1px solid #e6ebf5;border-radius:8px}.summary-title{font-size:14px;font-weight:700;margin-bottom:13px!important}.summary-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px}.summary-grid>div{min-width:0}.summary-grid>div+div{padding-left:18px;border-left:1px solid #dce3f0}.summary-grid small{display:block;font-size:12px;color:var(--sub)}.summary-grid strong{display:block;font-size:17px;line-height:1.5;margin:4px 0;color:var(--blue)}.summary-grid em{display:block;font-size:12px;line-height:1.65;color:var(--sub);font-style:normal}
+.toc{padding:22px;margin:18px 0 34px;background:#f8faff;border:1px solid #e5eaf3;border-radius:8px}.toc h2{font-size:17px;margin-bottom:12px!important}.toc ol{padding-left:22px}.toc li{padding:3px 0;color:var(--sub)}.toc a{color:var(--blue);text-decoration:none}
+.article-section{padding:25px 0 30px;border-bottom:1px solid var(--line)}.section-heading{display:flex;align-items:flex-start;gap:12px;margin-bottom:13px}.section-num{flex:0 0 30px;width:30px;height:30px;display:grid;place-items:center;background:#edf2ff;color:var(--blue);font-size:12px;font-weight:700;border-radius:50%}#qrator-guide h2{font-size:23px;line-height:1.5;letter-spacing:-.5px;font-weight:700;word-break:keep-all}.article-section p{margin:8px 0;color:#465267}.note{padding:17px 18px;margin:16px 0;background:#f5f8ff;border-left:3px solid var(--blue);border-radius:4px}.note p{margin:0}.table-wrap{overflow-x:auto;margin:18px 0}table{border-collapse:collapse;width:100%;font-size:14px}th,td{border:1px solid var(--line);padding:11px 13px;text-align:left}th{background:#f5f7fb}
+.qgv-faq{padding-top:30px;margin:16px 0 30px}.qgv-faq>h2{margin-bottom:10px!important}.qgv-faq details{border-bottom:1px solid var(--line);padding:14px 0}.qgv-faq summary{font-size:15px;font-weight:650;color:#27344d;line-height:1.8;cursor:pointer;list-style:none}.qgv-faq summary::-webkit-details-marker{display:none}.qgv-faq summary:after{content:"+";float:right;color:#5974a8;font-size:20px}.qgv-faq details[open] summary:after{content:"−"}.qgv-faq details p{font-size:14px;color:#636c7b;line-height:1.9;margin:8px 24px 0 0}
+.qgv-bridge{padding:20px 0}.qgv-bridge h2{font-size:20px;margin-bottom:7px!important}.qgv-bridge p{color:#596579}
+.qgv-promo{padding:30px;background:#2454c6;color:#fff;border-radius:10px;margin:14px 0 28px}.qgv-promo .qgv-brand{font-weight:750;letter-spacing:.2px}.qgv-promo h2{font-size:24px;color:#fff;margin:8px 0 10px!important}.qgv-promo p{color:#eef3ff}.qgv-apply{display:inline-flex;margin-top:18px;padding:10px 16px;background:#fff;color:#2454c6;text-decoration:none;border-radius:5px;font-weight:700}
+.qgv-sources{padding-top:14px;color:var(--sub);font-size:13px}.qgv-sources>p{margin-bottom:12px}.qgv-sources details{border-top:1px solid var(--line);padding-top:10px}.qgv-sources summary{cursor:pointer;line-height:2.4}.qgv-sources ul{padding-left:20px}
+@media(max-width:600px){#qrator-guide{padding:26px 20px 44px}#qrator-guide h1{font-size:28px}.subhead{font-size:15px}.summary{padding:19px 17px}.summary-grid{grid-template-columns:1fr;gap:12px}.summary-grid>div+div{padding:12px 0 0;border-left:0;border-top:1px solid #dce3f0}.summary-grid>div{display:grid;grid-template-columns:90px 1fr;gap:2px 10px}.summary-grid em{grid-column:2}.toc{padding:18px}.article-section{padding:21px 0}.section-heading{gap:9px}#qrator-guide h2{font-size:20px}.qgv-promo{padding:23px 19px}.qgv-promo h2{font-size:21px}}
+</style></head><body><article id="qrator-guide">
+<header class="qge-header"><div class="eyebrow"><span class="tag">등기 가이드</span><span>큐레이터 실무 콘텐츠</span></div><h1>새 등기 가이드 제목</h1><p class="subhead">이 글에서 안내할 내용을 한두 문장으로 소개해 주세요.</p><div class="meta"><span>작성자 큐레이터</span><span class="meta-dot"></span><time>작성일 입력</time></div></header>
+<div class="summary"><p class="summary-title">세 줄 요약</p><div class="summary-grid"><div><small>핵심 내용 1</small><strong>핵심 내용을 입력해 주세요</strong><em>독자가 기억할 기준을 간단히 정리해 주세요</em></div><div><small>핵심 내용 2</small><strong>먼저 확인할 내용을 입력해 주세요</strong><em>조건이나 예외 사항을 간단히 정리해 주세요</em></div><div><small>핵심 내용 3</small><strong>신청 준비 내용을 입력해 주세요</strong><em>기한이나 준비 순서를 간단히 정리해 주세요</em></div></div></div>
+<nav class="toc"><h2>이 글의 목차</h2><ol><li><a href="#qgv-section-1">변경 내용을 먼저 확인해요</a></li><li><a href="#qgv-section-2">회사에서 결정할 내용을 정리해요</a></li><li><a href="#qgv-section-3">준비 서류와 절차를 살펴봐요</a></li><li><a href="#qgv-section-4">신청 기한과 비용을 확인해요</a></li><li><a href="#qgv-faq">자주 묻는 질문</a></li></ol></nav>
+<section class="article-section" id="qgv-section-1"><div class="section-heading"><span class="section-num">01</span><h2>변경 내용을 먼저 확인해요</h2></div><p>어떤 변경이 필요한지, 현재 상태와 변경 후 내용을 비교해 설명해 주세요.</p><p>독자가 준비 전에 확인해야 할 기준과 예외 사항을 여기에 정리해 주세요.</p></section>
+<section class="article-section" id="qgv-section-2"><div class="section-heading"><span class="section-num">02</span><h2>회사에서 결정할 내용을 정리해요</h2></div><p>정관, 이사회 또는 주주총회 등 회사의 의사결정 절차를 주제에 맞게 설명해 주세요.</p><div class="note"><p>확인 포인트나 실수하기 쉬운 내용을 짧게 강조해 주세요.</p></div></section>
+<section class="article-section" id="qgv-section-3"><div class="section-heading"><span class="section-num">03</span><h2>준비 서류와 절차를 살펴봐요</h2></div><p>필요한 서류와 진행 순서를 단계별로 설명해 주세요.</p><div class="table-wrap"><table><thead><tr><th>구분</th><th>확인할 내용</th></tr></thead><tbody><tr><td>준비 항목</td><td>필요한 서류나 정보를 입력해 주세요</td></tr><tr><td>진행 순서</td><td>신청 전후 절차를 입력해 주세요</td></tr></tbody></table></div></section>
+<section class="article-section" id="qgv-section-4"><div class="section-heading"><span class="section-num">04</span><h2>신청 기한과 비용을 확인해요</h2></div><p>기한 계산 기준, 등록면허세 등 비용과 납부 시점을 정확한 근거와 함께 작성해 주세요.</p><div class="note"><p>법령이나 회사 상황에 따라 달라질 수 있는 부분을 안내해 주세요.</p></div></section>
+<section class="qgv-faq" id="qgv-faq"><h2>자주 묻는 질문</h2><details><summary>어떤 경우에 이 등기를 신청하나요?</summary><p>질문에 대한 답변을 간단하고 정확하게 작성해 주세요.</p></details><details><summary>신청 전에 무엇을 확인해야 하나요?</summary><p>필요한 확인 사항과 예외를 작성해 주세요.</p></details><details><summary>신청 기한은 언제까지인가요?</summary><p>기산일과 기한을 근거에 맞춰 작성해 주세요.</p></details></section>
+<section class="qgv-bridge"><h2>등기 준비의 핵심</h2><p>이 글의 핵심을 한 문장으로 정리해 주세요.</p></section>
+<aside class="qgv-promo"><span class="qgv-brand">Qrator.</span><h2>큐레이터에서 변경등기를 준비해 보세요</h2><p>변경 내용을 입력하고 안내에 따라 서류를 준비하는 방법을 간단히 소개해 주세요.</p><a class="qgv-apply" href="/">큐레이터 이용 안내 <span aria-hidden="true"> →</span></a></aside>
+<div class="qgv-sources"><p>이 글은 일반적인 안내이며, 회사 형태와 구체적인 사실관계에 따라 절차가 달라질 수 있습니다. 법령과 공식 자료의 최신 내용을 확인해 주세요.</p><details><summary>참고 법령 및 공식 자료</summary><ul><li>참고 법령·공식 자료 이름과 URL을 입력해 주세요.</li></ul></details></div>
+</article></body></html>`;
 function recordFromForm(){
  const r=clone(state.current);
  r.title=$('editTitle').value.trim();r.category=$('editCategory').value;r.author=$('editAuthor').value;r.summary=$('editSummary').value;r.slug=$('editSlug').value.trim();r.tags=$('editTags').value.split(',').map(x=>x.trim()).filter(Boolean);r.status=$('editStatus').value;
@@ -68,14 +94,14 @@ function loadVisual(){
     for(const el of doc.body.querySelectorAll('*')){
      if(el.matches(excluded)||el.closest(excluded)||el.children.length)continue;
      if(!el.textContent.trim())continue;
-     el.contentEditable='true';el.spellcheck=false;el.classList.add('qrator-text-editable');
+     el.contentEditable='true';el.spellcheck=false;el.classList.add('qrator-text-editable');el.setAttribute('data-studio-text-editable','true');
     }
    }
    doc.addEventListener('input',markDirty);
    doc.addEventListener('click',e=>{if(e.target.closest('a'))e.preventDefault();});
    doc.addEventListener('submit',e=>e.preventDefault());
    const style=doc.createElement('style');
-   style.textContent='.qrator-text-editable{cursor:text}.qrator-text-editable:hover{outline:1px dashed #7baaff;outline-offset:2px}.qrator-text-editable:focus{outline:2px solid #84b4ff;outline-offset:2px}';
+   style.setAttribute('data-studio-temporary','true');style.textContent='.qrator-text-editable{cursor:text}.qrator-text-editable:hover{outline:1px dashed #7baaff;outline-offset:2px}.qrator-text-editable:focus{outline:2px solid #84b4ff;outline-offset:2px}';
    doc.head.appendChild(style);
    $('visualEditor').classList.toggle('text-only-mode',state.mode==='text');
    $('editorBox').classList.toggle('text-mode',state.mode==='text');
@@ -86,8 +112,8 @@ function loadVisual(){
  $('visualEditor').srcdoc=previewHTML(state.current);
 }
 function renderAssets(){$('assetList').innerHTML=state.current.assets.map((a,i)=>'<span class="asset-chip">'+esc(a.path)+'<button type="button" data-asset-remove="'+i+'" aria-label="'+esc(a.path)+' 삭제">×</button></span>').join('');}
-function fillEditor(record){
- record={...record,status:normalizeStatus(record.status)};state.current=clone(record);state.dirty=false;state.mode='visual';
+function fillEditor(record,initialMode='visual'){
+ record={...record,status:normalizeStatus(record.status)};state.current=clone(record);state.dirty=false;state.mode=initialMode;
  $('listView').hidden=true;$('editorView').hidden=false;$('editorTitle').textContent=record.revision?'등기 가이드 수정':'등기 가이드 작성';
  $('editTitle').value=record.title;$('editCategory').value=record.category;$('editAuthor').value=record.author;
  $('editSummary').value=record.summary;$('editSlug').value=record.slug;$('editSlug').readOnly=!!record.revision;$('slugHint').textContent=record.revision?'등록된 콘텐츠의 주소는 고정됩니다.':'영문 소문자·숫자·하이픈';
@@ -97,12 +123,12 @@ function fillEditor(record){
  $('titleLength').textContent=record.title.length+' / 100';$('saveState').textContent=record.revision?'저장됨':'작성 중 · 저장 필요';
  $('revisionInfo').textContent=record.updatedAt?dateTime(record.updatedAt)+' · '+(record.updatedBy||record.author):'';
  $('editBy').textContent='현재 편집자: '+state.user.name;$('deleteButton').hidden=!record.revision;$('historyButton').disabled=!record.history?.length;
- state.mode='visual';$('visualEditor').hidden=false;$('htmlEditor').hidden=true;$('editorBox').classList.remove('text-mode');$('editorHint').textContent='기존 HTML 서식 유지';document.querySelectorAll('[data-mode]').forEach(b=>b.classList.toggle('mode-active',b.dataset.mode==='visual'));
+ state.mode='visual';$('visualEditor').hidden=false;$('htmlEditor').hidden=true;$('editorBox').classList.toggle('text-mode',state.mode==='text');$('editorHint').textContent=state.mode==='text'?'등기 가이드 기본 틀입니다. 글자를 클릭해 문구만 바꿔 보세요.':'기존 HTML 서식 유지';document.querySelectorAll('[data-mode]').forEach(b=>b.classList.toggle('mode-active',b.dataset.mode===state.mode));
  renderAssets();loadVisual();window.scrollTo(0,0);refreshGithubStatus();
 }
 async function openRecord(slug){if(!ensureLeave())return;const r=await api('get',null,{slug});fillEditor(r);}
 function newRecord(){
- if(!ensureLeave())return;fillEditor({slug:'',title:'',category:CATEGORIES[0],summary:'',tags:[],html:starterHTML,entryPath:'index.html',assets:[],author:state.user.name,status:'draft',reviewStatus:'pending',scheduledAt:null,note:'',sourceUrls:[],verification:'',history:[]});
+ if(!ensureLeave())return;fillEditor({slug:'',title:'',category:CATEGORIES[0],summary:'',tags:[],html:starterHTML,entryPath:'index.html',assets:[],author:state.user.name,status:'draft',reviewStatus:'pending',scheduledAt:null,note:'',sourceUrls:[],verification:'',history:[]},'text');
 }
 async function save(){
  if(!$('editorForm').reportValidity())return;
