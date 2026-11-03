@@ -35,6 +35,7 @@
 | STUDIO_PASSWORD | 무작위 팀 비밀번호, 16자 이상 |
 | SESSION_SECRET | 별도 무작위 세션 서명 문자열, 32자 이상 |
 | APP_ORIGIN | 실제 사이트 주소, 예: https://내사이트.vercel.app |
+| CONTENT_UPLOAD_TOKEN | 외부 콘텐츠 등록 전용 무작위 키, 32자 이상 |
 
 설정 후 Redeploy합니다. 시크릿 변수에 NEXT_PUBLIC_/VITE_ 접두사를 붙이지 않습니다. APP_ORIGIN과 다른 도메인의 변경 요청은 차단됩니다. 커스텀 도메인으로 변경하면 값을 수정하고 재배포합니다.
 
@@ -44,6 +45,7 @@
 비밀번호는 환경변수에만 보관하고 해시 기반 상수 시간 비교로 검사합니다. 세션 쿠키는 HMAC 서명, HttpOnly/Secure/SameSite=Strict, 유효기간 12시간입니다. 비밀번호나 SESSION_SECRET 변경 시 기존 세션도 무효화됩니다.
 로그인은 IP당 15분 최대 10회로 S3에서 제한합니다. Vercel 제공 IP를 사용하며 같은 IP인 팀원은 제한을 공유할 수 있습니다. 변경 POST는 Origin을 확인합니다. 로그인 없이 목록/본문/이력을 읽을 수 없습니다.
 팀 공용 계정은 모두 같은 편집 권한입니다. 작성자 입력은 본인 인증된 감사 기록이 아닙니다. 개별 권한은 별도 사용자 인증이 필요합니다.
+외부 작성 도구는 `POST /api/content-upload`에 `Authorization: Bearer {CONTENT_UPLOAD_TOKEN}` 헤더와 콘텐츠 JSON을 보내 새 글만 등록할 수 있습니다. 서버는 게시 상태를 `작성 중`, 검토 상태를 `검토 전`으로 고정하며 기존 글 수정·삭제·복구는 허용하지 않습니다.
 S3의 studio/records/{slug}.json에 HTML·base64 첨부·메타데이터, studio/versions/에 이전 버전, studio/auth/에 로그인 시도 횟수를 보관합니다. revision과 ETag 조건부 쓰기로 오래된 편집본의 덮어쓰기를 막습니다. 휴지통은 deletedAt 표시만 바꿉니다.
 미리보기는 스크립트가 차단된 sandbox iframe입니다. 외부 이미지/스타일/폰트는 원본 링크로 로드될 수 있습니다.
 
