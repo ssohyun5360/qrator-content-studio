@@ -7,10 +7,10 @@ export default async function handler(req,res){
  const send=(code,data)=>res.status(code).json(data);
  try{
   if(req.method!=='POST')fail(405,'POST 요청만 허용됩니다.');
-  const token=process.env.CONTENT_UPLOAD_TOKEN;
-  if(!token||token.length<32)fail(503,'콘텐츠 등록 연결 설정이 필요합니다.');
-  const authorization=String(req.headers.authorization||'');
-  if(!authorization.startsWith('Bearer ')||!equal(authorization.slice(7),token))fail(401,'콘텐츠 등록 키가 올바르지 않습니다.');
+const tokens=[process.env.CONTENT_UPLOAD_TOKEN,process.env.CONTENT_UPLOAD_TOKEN_GITHUB].filter(t=>t&&t.length>=32);
+if(!tokens.length)fail(503,'콘텐츠 등록 연결 설정이 필요합니다.');
+const authorization=String(req.headers.authorization||'');
+if(!authorization.startsWith('Bearer ')||!tokens.some(t=>equal(authorization.slice(7),t)))fail(401,'콘텐츠 등록 키가 올바르지 않습니다.');
 
   let body=req.body||{};
   if(typeof body==='string'){
