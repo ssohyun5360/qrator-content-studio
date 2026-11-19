@@ -49,7 +49,7 @@ test('실제 단계가 준비되기 전에는 가짜 모드가 아니면 생성�
  assert.equal((await call('create',{method:'POST',body:{}})).code,503);
 });
 
-test('가짜 모드: 한 번 호출에 한 단계씩 진행해 완료되고 글은 저장되지 않는다',async()=>{
+test('가짜 모드: 한 번 호출에 한 단계씩 진행해 완료되고 [테스트] 글 1건이 작성 중·검토 전으로 저장된다',async()=>{
  store.clear();setFlags({AI_GENERATION_ENABLED:'1',AI_MOCK:'1',AI_DAILY_LIMIT:'5'});
  const created=await call('create',{method:'POST',body:{topic:'임원 변경 등기 비용'}});
  assert.equal(created.code,201);
@@ -64,7 +64,11 @@ test('가짜 모드: 한 번 호출에 한 단계씩 진행해 완료되고 글�
   done=r.data.job;
  }
  assert.equal(done.status,'done');
- assert.equal([...store.keys()].some(k=>k.startsWith('studio/records/')),false);
+ const saved=[...store.keys()].filter(k=>k.startsWith('studio/records/'));
+ assert.equal(saved.length,1);
+ const record=JSON.parse(store.get(saved[0]).body);
+ assert.match(record.title,/^\[테스트\] /);
+ assert.equal(record.status,'draft');assert.equal(record.reviewStatus,'pending');
  const got=await call('get',{query:{id}});assert.equal(Object.keys(got.data.outputs).length,STEP_NAMES.length);
  assert.equal((await call('list')).data.items.length,1);
 });
