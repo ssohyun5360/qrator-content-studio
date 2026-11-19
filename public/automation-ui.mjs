@@ -21,7 +21,7 @@ main.insertAdjacentHTML('beforeend',`
     <article class="ops-content-card" data-queue="review publish">
       <label class="ops-select"><input type="checkbox" aria-label="본점 이전 원고 선택"></label>
       <div class="auto-thumb"><span>등기 가이드</span><strong>법인 본점 이전<br>등기 후 할 일</strong><i></i></div>
-      <div class="ops-content-main"><div class="ops-content-title"><div><h3>법인 본점 이전했다면? 등기 후 꼭 해야 할 일 총정리</h3><p>본점 이전 · 오늘 09:37 생성 · 담당자 미지정</p></div>${statusChip('최종 승인 대기','amber')}</div>${channelStatus(statusChip('업로드 완료','green'),statusChip('임시저장','blue'))}<div class="ops-review-flags"><span class="pass">사실·법령 통과</span><span class="warn">서비스 범위 확인 필요 1</span><span class="pass">과장 표현 통과</span><span class="pass">홈페이지 템플릿 통과</span><span class="warn">네이버 템플릿 확인 필요 1</span><span class="pass">대표 이미지 통과</span></div></div>
+      <div class="ops-content-main"><div class="ops-content-title"><div><h3>법인 본점 이전했다면? 등기 후 꼭 해야 할 일 총정리</h3><p>본점 이전 · 오늘 09:37 생성 · 담당자 미지정</p></div>${statusChip('최종 승인 대기','amber')}</div>${channelStatus(statusChip('업로드 완료','green'),statusChip('임시저장','blue'))}<div class="ops-review-summary warn"><strong>확인 필요 2건</strong><span>세부 내용은 검토하기에서 확인하세요.</span></div></div>
       <div class="ops-card-actions"><button type="button" data-review="scope">검토하기</button><button type="button" data-diff>수정 내용 비교</button><button type="button" data-preview>최종 미리보기</button><button type="button" class="primary" data-final-approve>최종 승인</button></div>
     </article>
     <article class="ops-content-card" data-queue="failed">
