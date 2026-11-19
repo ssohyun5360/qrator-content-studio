@@ -1,6 +1,9 @@
 import {equal,fail,nextRecord,MAX_BYTES} from '../lib/core.mjs';
 import {read,write} from '../lib/storage.mjs';
 
+const COMPARE_KEYS=['title','category','summary','author','note','verification','seoTitle','seoDescription','html','entryPath','assets','tags','sourceUrls','status','reviewStatus'];
+function sameContent(a,b){return JSON.stringify(COMPARE_KEYS.map(k=>a[k]??null))===JSON.stringify(COMPARE_KEYS.map(k=>b[k]??null));}
+
 export default async function handler(req,res){
  res.setHeader('Cache-Control','private, no-store');
  res.setHeader('X-Content-Type-Options','nosniff');
@@ -28,9 +31,19 @@ if(!authorization.startsWith('Bearer ')||!tokens.some(t=>equal(authorization.sli
   };
   const key='studio/records/'+String(record.slug||'')+'.json';
   const current=await read(key);
-  if(current)fail(409,'같은 상세 주소의 글이 이미 있습니다. 관리 화면에서 기존 글을 확인해 주세요.');
+  const wantsReplace=body.replace===true||body.record?.replace===true;
+  if(current&&!wantsReplace)fail(409,'같은 상세 주소의 글이 이미 있습니다. 관리 화면에서 기존 글을 확인해 주세요.');
 
   const next=nextRecord(record,null,null);
+  if(current){
+   // 덮어쓰기는 '자동 등록 이후 아무도 손대지 않은 글'에만 허용한다(수정 이력 0건·작성 중·검토 전·휴지통 아님).
+   const old=current.value;
+   if(old.deletedAt||(old.history||[]).length>0||old.status!=='draft'||old.reviewStatus!=='pending')fail(409,'이미 수정되었거나 휴지통에 있는 글이라 덮어쓰지 않았습니다.');
+   const item={slug:next.slug,title:next.title,status:next.status,reviewStatus:next.reviewStatus,createdAt:old.createdAt};
+   if(sameContent(old,next))return send(200,{ok:true,unchanged:true,item});
+   await write(key,{...next,createdAt:old.createdAt},current.etag);
+   return send(200,{ok:true,replaced:true,item});
+  }
   await write(key,next);
   return send(201,{ok:true,item:{slug:next.slug,title:next.title,status:next.status,reviewStatus:next.reviewStatus,createdAt:next.createdAt}});
  }catch(e){
