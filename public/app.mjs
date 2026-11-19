@@ -1,6 +1,8 @@
 import {CATEGORIES,STATUS,REVIEW_STATUS,normalizeStatus,statusLabel,esc,slugify,metadataFromHTML,suggestTags,readArchive,previewHTML,editedHTML,exportFolder,mime} from '/client-helpers.mjs';
 const $=id=>document.getElementById(id);
 const state={items:[],filtered:[],selected:new Set(),page:1,user:{name:'공용 관리자'},current:null,mode:'visual',dirty:false,editorReady:false};
+const AUTOMATION_STATUS={manual:'직접 작성',queued:'생성 대기',generating:'생성 중',review_required:'검토 필요',approval_pending:'최종 승인 대기',complete:'완료',failed:'실패'};
+const automationStatus=record=>record.automationStatus||(record.generatedBy==='ai'?'review_required':'manual');
 const clone=x=>JSON.parse(JSON.stringify(x));
 let toastTimer,autosaveTimer;const LOCAL_DRAFT_KEY='qrator-content-studio:autosave';
 function showLogin(){ $('workspace').hidden=true;$('loginView').hidden=false; }
@@ -24,8 +26,8 @@ function syncSelects(){
  const reviewSelected=$('reviewFilter').value;$('reviewFilter').innerHTML='<option value="">검토 상태 전체</option>'+Object.entries(REVIEW_STATUS).map(([k,v])=>'<option value="'+k+'">'+v+'</option>').join('');$('reviewFilter').value=reviewSelected;
 }
 async function loadItems(){
- $('rows').innerHTML='<tr><td colspan="12" class="empty">콘텐츠를 불러오는 중입니다.</td></tr>';
- try{const result=await api('list');state.items=result.items.map(x=>({...x,status:normalizeStatus(x.status)}));syncSelects();applyFilters();}catch(e){$('rows').innerHTML='<tr><td colspan="12" class="empty">'+esc(e.message)+'</td></tr>';$('totalCount').textContent='불러오기 실패';throw e;}
+ $('rows').innerHTML='<tr><td colspan="14" class="empty">콘텐츠를 불러오는 중입니다.</td></tr>';
+ try{const result=await api('list');state.items=result.items.map(x=>({...x,status:normalizeStatus(x.status)}));syncSelects();applyFilters();}catch(e){$('rows').innerHTML='<tr><td colspan="14" class="empty">'+esc(e.message)+'</td></tr>';$('totalCount').textContent='불러오기 실패';throw e;}
 }
 function applyFilters(){
  const field=$('searchField').value,query=$('search').value.trim().toLowerCase(),category=$('categoryFilter').value,status=$('statusFilter').value,review=$('reviewFilter').value,tag=$('tagFilter').value,from=$('dateFrom').value,to=$('dateTo').value,dateField=$('dateField').value;
@@ -38,7 +40,7 @@ function renderList(){
  const visible=state.filtered.slice((state.page-1)*size,state.page*size);
  const scheduled=state.items.filter(x=>x.status==='scheduled').length,completed=state.items.filter(x=>x.status==='completed').length,published=state.items.filter(x=>x.status==='published').length;
  $('totalCount').textContent='총 '+count+'건  |  게시 예정 '+scheduled+' · 작성 완료 '+completed+' · 게시 완료 '+published;
- $('rows').innerHTML=visible.length?visible.map((r,i)=>'<tr><td><input type="checkbox" class="row-check" data-slug="'+esc(r.slug)+'" aria-label="'+esc(r.title)+' 선택" '+(state.selected.has(r.slug)?'checked':'')+'></td><td>'+(count-(state.page-1)*size-i)+'</td><td>'+(r.thumbnailPath?'<img class="thumb-image" loading="lazy" src="/api/studio?op=thumbnail&slug='+encodeURIComponent(r.slug)+'&path='+encodeURIComponent(r.thumbnailPath)+'" alt="'+esc(r.title)+' 대표 이미지">':'<span class="thumb">'+esc(r.category)+'<br>등기 가이드</span>')+'</td><td>'+esc(r.category.replace(' 변경','').replace(' 이전',''))+'</td><td><button class="article-title" data-open="'+esc(r.slug)+'">'+esc(r.title)+'</button><div class="small muted">'+esc(r.slug)+'</div></td><td>'+r.tags.slice(0,3).map(t=>'<span class="tag">'+esc(t)+'</span>').join('')+'</td><td><span class="badge review-'+esc(r.reviewStatus||'pending')+'">'+(REVIEW_STATUS[r.reviewStatus||'pending']||'검토 전')+'</span></td><td><span class="badge '+esc(r.status)+'">'+STATUS[r.status]+'</span></td><td>'+(r.history?.length?'<span style="color:#3866c8">있음</span>':'-')+'</td><td>'+dateTime(r.scheduledAt)+'</td><td>'+dateTime(r.updatedAt)+'</td><td>'+esc(r.updatedBy||r.author)+'</td><td><button data-open="'+esc(r.slug)+'">상세</button></td></tr>').join(''):'<tr><td colspan="13" class="empty">조건에 맞는 콘텐츠가 없습니다.</td></tr>';
+ $('rows').innerHTML=visible.length?visible.map((r,i)=>{const auto=automationStatus(r);return '<tr><td><input type="checkbox" class="row-check" data-slug="'+esc(r.slug)+'" aria-label="'+esc(r.title)+' 선택" '+(state.selected.has(r.slug)?'checked':'')+'></td><td>'+(count-(state.page-1)*size-i)+'</td><td>'+(r.thumbnailPath?'<img class="thumb-image" loading="lazy" src="/api/studio?op=thumbnail&slug='+encodeURIComponent(r.slug)+'&path='+encodeURIComponent(r.thumbnailPath)+'" alt="'+esc(r.title)+' 대표 이미지">':'<span class="thumb">'+esc(r.category)+'<br>등기 가이드</span>')+'</td><td>'+esc(r.category.replace(' 변경','').replace(' 이전',''))+'</td><td><button class="article-title" data-open="'+esc(r.slug)+'">'+esc(r.title)+'</button><div class="small muted">'+esc(r.slug)+'</div></td><td>'+r.tags.slice(0,3).map(t=>'<span class="tag">'+esc(t)+'</span>').join('')+'</td><td><span class="automation-badge '+esc(auto)+'">'+esc(AUTOMATION_STATUS[auto]||auto)+'</span></td><td><span class="badge review-'+esc(r.reviewStatus||'pending')+'">'+(REVIEW_STATUS[r.reviewStatus||'pending']||'검토 전')+'</span></td><td><span class="badge '+esc(r.status)+'">'+STATUS[r.status]+'</span></td><td>'+(r.history?.length?'<span style="color:#3866c8">있음</span>':'-')+'</td><td>'+dateTime(r.scheduledAt)+'</td><td>'+dateTime(r.updatedAt)+'</td><td>'+esc(r.updatedBy||r.author)+'</td><td><button data-open="'+esc(r.slug)+'">상세</button></td></tr>'}).join(''):'<tr><td colspan="14" class="empty">조건에 맞는 콘텐츠가 없습니다.</td></tr>';
  $('selectedCount').textContent=state.selected.size+'건 선택';
  $('selectedActions').hidden=state.selected.size===0;
  if($('deleteSelected'))$('deleteSelected').disabled=deletingSelected||state.selected.size===0;
@@ -231,6 +233,9 @@ function fillEditor(record,initialMode='visual'){
  $('seoTitle').value=record.seoTitle||record.title;$('seoDescription').value=record.seoDescription||record.summary;
  $('titleLength').textContent=record.title.length+' / 100';$('saveState').textContent=record.revision?'저장됨':'작성 중 · 저장 필요';
  $('revisionInfo').textContent=record.updatedAt?dateTime(record.updatedAt)+' · '+(record.updatedBy||record.author):'';
+ const isAi=record.generatedBy==='ai'||(record.automationStatus&&record.automationStatus!=='manual');
+ $('aiReviewSummary').hidden=!isAi;
+ if(isAi){const review=record.aiReview||{passed:4,warning:2,blocked:0};$('aiGeneratedAt').textContent=(record.generatedAt?dateTime(record.generatedAt):'생성 시간 미기록')+' · 작성 규칙 '+(record.ruleVersion||'v1.1');$('aiReviewCounts').textContent='검토 결과: 통과 '+(review.passed||0)+' · 확인 필요 '+(review.warning||0)+' · 게시 차단 '+(review.blocked||0);}
  $('editBy').textContent='현재 편집자: '+state.user.name;$('deleteButton').hidden=!record.revision;$('historyButton').disabled=!record.history?.length;
  state.mode='visual';$('visualEditor').hidden=false;$('htmlEditor').hidden=true;$('editorBox').classList.toggle('text-mode',state.mode==='text');$('editorHint').textContent=state.mode==='text'?'등기 가이드 기본 틀입니다. 글자를 클릭해 문구만 바꿔 보세요.':'기존 HTML 서식 유지';document.querySelectorAll('[data-mode]').forEach(b=>b.classList.toggle('mode-active',b.dataset.mode===state.mode));
  renderAssets();loadVisual();window.scrollTo(0,0);refreshGithubStatus();
