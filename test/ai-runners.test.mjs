@@ -116,3 +116,14 @@ test('법령 근거나 규칙 위반으로 검사가 실패하면 저장하지 �
  assert.equal(result.steps.find(s=>s.status==='failed').name,'check_fix');
  assert.equal(records().length,0);
 });
+
+test('저장된 글: 본문이 가리키는 모든 상대 이미지 경로(커버·로고)가 첨부 파일에 있다',async()=>{
+ store.clear();await runAll(await make());
+ const [record]=records();
+ const paths=new Set(record.assets.map(a=>a.path));
+ const used=[...record.html.matchAll(/src="\.\/([^"]+)"/g)].map(m=>m[1]);
+ assert.ok(used.includes('assets/qrator-logo.svg'),'서비스 소개 박스 로고를 쓴다');
+ for(const p of used)assert.ok(paths.has(p),`첨부 파일 없음: ${p}`);
+ assert.doesNotMatch(record.html,/(상법|상업등기규칙|대법원예규)\.[\d가-힣]/);
+ assert.match(record.note,/법령 링크 확인 필요: 대법원 예규\(상호 로마자 병기 기준\)/);
+});
