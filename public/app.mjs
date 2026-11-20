@@ -216,15 +216,15 @@ function loadVisual(){
    doc.head.appendChild(style);
    $('visualEditor').classList.toggle('text-only-mode',state.mode==='text');
    $('editorBox').classList.toggle('text-mode',state.mode==='text');
-   $('editorHint').textContent=state.mode==='text'?'글자를 클릭해 텍스트만 수정하세요. 이미지와 레이아웃은 유지됩니다.':'기존 HTML 서식 유지';
+   $('editorHint').textContent=state.mode==='text'?'글자를 클릭해 텍스트만 수정하세요. 이미지와 레이아웃은 유지됩니다.':'화면에서 본문과 서식을 수정합니다.';
    state.editorReady=true;
   }catch(e){toast('화면 편집을 열 수 없습니다. HTML 편집을 사용해 주세요.');}
  };
  $('visualEditor').srcdoc=previewHTML(state.current);
 }
 function renderAssets(){$('assetList').innerHTML=state.current.assets.map((a,i)=>'<span class="asset-chip">'+esc(a.path)+'<button type="button" data-asset-remove="'+i+'" aria-label="'+esc(a.path)+' 삭제">×</button></span>').join('');}
-function fillEditor(record,initialMode='visual'){
- record={...record,status:normalizeStatus(record.status)};state.current=clone(record);state.dirty=false;state.mode=initialMode;
+function fillEditor(record){
+ record={...record,status:normalizeStatus(record.status)};state.current=clone(record);state.dirty=false;state.mode='visual';
  $('listView').hidden=true;$('editorView').hidden=false;$('editorTitle').textContent=record.revision?'등기 가이드 수정':'등기 가이드 작성';
  $('editTitle').value=record.title;$('editCategory').value=record.category;$('editAuthor').value=record.author;
  $('editSummary').value=record.summary;$('editSlug').value=record.slug;$('editSlug').readOnly=!!record.revision;$('slugHint').textContent=record.revision?'등록된 콘텐츠의 주소는 고정됩니다.':'영문 소문자·숫자·하이픈';
@@ -237,12 +237,12 @@ function fillEditor(record,initialMode='visual'){
  $('aiReviewSummary').hidden=!isAi;
  if(isAi){const review=record.aiReview||{passed:4,warning:2,blocked:0};$('aiGeneratedAt').textContent=(record.generatedAt?dateTime(record.generatedAt):'생성 시간 미기록')+' · 작성 규칙 '+(record.ruleVersion||'v1.1');$('aiReviewCounts').textContent='검토 결과: 통과 '+(review.passed||0)+' · 확인 필요 '+(review.warning||0)+' · 게시 차단 '+(review.blocked||0);}
  $('editBy').textContent='현재 편집자: '+state.user.name;$('deleteButton').hidden=!record.revision;$('historyButton').disabled=!record.history?.length;
- state.mode='visual';$('visualEditor').hidden=false;$('htmlEditor').hidden=true;$('editorBox').classList.toggle('text-mode',state.mode==='text');$('editorHint').textContent=state.mode==='text'?'등기 가이드 기본 틀입니다. 글자를 클릭해 문구만 바꿔 보세요.':'기존 HTML 서식 유지';document.querySelectorAll('[data-mode]').forEach(b=>b.classList.toggle('mode-active',b.dataset.mode===state.mode));
+ state.mode='visual';$('visualEditor').hidden=false;$('htmlEditor').hidden=true;$('editorBox').classList.toggle('text-mode',state.mode==='text');$('editorHint').textContent=state.mode==='text'?'등기 가이드 기본 틀입니다. 글자를 클릭해 문구만 바꿔 보세요.':'화면에서 본문과 서식을 수정합니다.';document.querySelectorAll('[data-mode]').forEach(b=>b.classList.toggle('mode-active',b.dataset.mode===state.mode));
  renderAssets();loadVisual();window.scrollTo(0,0);refreshGithubStatus();
 }
 async function openRecord(slug){if(!ensureLeave())return;const r=await api('get',null,{slug});fillEditor(r);}
 function newRecord(){
- if(!ensureLeave())return;fillEditor({slug:'',title:'',category:CATEGORIES[0],summary:'',tags:[],html:starterHTML.replaceAll('작성일 입력',kstDate(new Date())).replaceAll('{{article-date}}',kstDate(new Date()).replace(/^(\d{4})-(\d{2})-(\d{2})$/,'$1. $2. $3.')),templateId:'qrator-guide-v1',entryPath:'index.html',assets:[],author:state.user.name,status:'draft',reviewStatus:'pending',scheduledAt:null,note:'',sourceUrls:[],verification:'',history:[]},'text');
+ if(!ensureLeave())return;fillEditor({slug:'',title:'',category:CATEGORIES[0],summary:'',tags:[],html:starterHTML.replaceAll('작성일 입력',kstDate(new Date())).replaceAll('{{article-date}}',kstDate(new Date()).replace(/^(\d{4})-(\d{2})-(\d{2})$/,'$1. $2. $3.')),templateId:'qrator-guide-v1',entryPath:'index.html',assets:[],author:state.user.name,status:'draft',reviewStatus:'pending',scheduledAt:null,note:'',sourceUrls:[],verification:'',history:[]});
 }
 async function save(){
  if(!$('editorForm').reportValidity())return;
