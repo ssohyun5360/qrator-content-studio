@@ -3,6 +3,7 @@ const $=id=>document.getElementById(id);
 const state={items:[],filtered:[],selected:new Set(),page:1,user:{name:'공용 관리자'},current:null,mode:'visual',dirty:false,editorReady:false};
 const AUTOMATION_STATUS={manual:'직접 작성',queued:'생성 대기',generating:'생성 중',review_required:'검토 필요',approval_pending:'최종 승인 대기',complete:'완료',failed:'실패'};
 const automationStatus=record=>record.automationStatus||(record.generatedBy==='ai'?'review_required':'manual');
+const inlineStatusSelect=(field,slug,current,labels)=>'<select class="table-status-select '+(field==='reviewStatus'?'review-':'status-')+esc(current)+'" data-inline-field="'+field+'" data-slug="'+esc(slug)+'" aria-label="'+(field==='reviewStatus'?'검토 상태':'게시 상태')+' 변경">'+Object.entries(labels).map(([value,label])=>'<option value="'+esc(value)+'" '+(value===current?'selected':'')+'>'+esc(label)+'</option>').join('')+'</select>';
 const clone=x=>JSON.parse(JSON.stringify(x));
 let toastTimer,autosaveTimer;const LOCAL_DRAFT_KEY='qrator-content-studio:autosave';
 function showLogin(){ $('workspace').hidden=true;$('loginView').hidden=false; }
@@ -26,8 +27,8 @@ function syncSelects(){
  const reviewSelected=$('reviewFilter').value;$('reviewFilter').innerHTML='<option value="">검토 상태 전체</option>'+Object.entries(REVIEW_STATUS).map(([k,v])=>'<option value="'+k+'">'+v+'</option>').join('');$('reviewFilter').value=reviewSelected;
 }
 async function loadItems(){
- $('rows').innerHTML='<tr><td colspan="13" class="empty">콘텐츠를 불러오는 중입니다.</td></tr>';
- try{const result=await api('list');state.items=result.items.map(x=>({...x,status:normalizeStatus(x.status)}));state.tagGroups=result.tagGroups||[];syncSelects();applyFilters();}catch(e){$('rows').innerHTML='<tr><td colspan="13" class="empty">'+esc(e.message)+'</td></tr>';$('totalCount').textContent='불러오기 실패';throw e;}
+ $('rows').innerHTML='<tr><td colspan="12" class="empty">콘텐츠를 불러오는 중입니다.</td></tr>';
+ try{const result=await api('list');state.items=result.items.map(x=>({...x,status:normalizeStatus(x.status)}));state.tagGroups=result.tagGroups||[];syncSelects();applyFilters();}catch(e){$('rows').innerHTML='<tr><td colspan="12" class="empty">'+esc(e.message)+'</td></tr>';$('totalCount').textContent='불러오기 실패';throw e;}
 }
 function applyFilters(){
  const field=$('searchField').value,query=$('search').value.trim().toLowerCase(),category=$('categoryFilter').value,status=$('statusFilter').value,review=$('reviewFilter').value,tag=$('tagFilter').value,from=$('dateFrom').value,to=$('dateTo').value,dateField=$('dateField').value;
@@ -40,7 +41,7 @@ function renderList(){
  const visible=state.filtered.slice((state.page-1)*size,state.page*size);
  const scheduled=state.items.filter(x=>x.status==='scheduled').length,completed=state.items.filter(x=>x.status==='completed').length,published=state.items.filter(x=>x.status==='published').length;
  $('totalCount').textContent='총 '+count+'건  |  게시 예정 '+scheduled+' · 작성 완료 '+completed+' · 게시 완료 '+published;
- $('rows').innerHTML=visible.length?visible.map((r,i)=>'<tr><td><input type="checkbox" class="row-check" data-slug="'+esc(r.slug)+'" aria-label="'+esc(r.title)+' 선택" '+(state.selected.has(r.slug)?'checked':'')+'></td><td>'+(count-(state.page-1)*size-i)+'</td><td>'+(r.thumbnailPath?'<img class="thumb-image" loading="lazy" src="/api/studio?op=thumbnail&slug='+encodeURIComponent(r.slug)+'&path='+encodeURIComponent(r.thumbnailPath)+'" alt="'+esc(r.title)+' 대표 이미지">':'<span class="thumb">'+esc(r.category)+'<br>등기 가이드</span>')+'</td><td>'+esc(r.category.replace(' 변경','').replace(' 이전',''))+'</td><td><button class="article-title" data-open="'+esc(r.slug)+'">'+esc(r.title)+'</button><div class="small muted">'+esc(r.slug)+'</div></td><td>'+r.tags.slice(0,3).map(t=>'<span class="tag">'+esc(t)+'</span>').join('')+'</td><td><span class="badge review-'+esc(r.reviewStatus||'pending')+'">'+(REVIEW_STATUS[r.reviewStatus||'pending']||'검토 전')+'</span></td><td><span class="badge '+esc(r.status)+'">'+STATUS[r.status]+'</span></td><td>'+(r.history?.length?'<span style="color:#3866c8">있음</span>':'-')+'</td><td>'+dateTime(r.scheduledAt)+'</td><td>'+dateTime(r.updatedAt)+'</td><td>'+esc(r.updatedBy||r.author)+'</td><td><button data-open="'+esc(r.slug)+'">상세</button></td></tr>').join(''):'<tr><td colspan="13" class="empty">조건에 맞는 콘텐츠가 없습니다.</td></tr>';
+ $('rows').innerHTML=visible.length?visible.map((r,i)=>'<tr><td><input type="checkbox" class="row-check" data-slug="'+esc(r.slug)+'" aria-label="'+esc(r.title)+' 선택" '+(state.selected.has(r.slug)?'checked':'')+'></td><td>'+(count-(state.page-1)*size-i)+'</td><td>'+(r.thumbnailPath?'<img class="thumb-image" loading="lazy" src="/api/studio?op=thumbnail&slug='+encodeURIComponent(r.slug)+'&path='+encodeURIComponent(r.thumbnailPath)+'" alt="'+esc(r.title)+' 대표 이미지">':'<span class="thumb">'+esc(r.category)+'<br>등기 가이드</span>')+'</td><td>'+esc(r.category.replace(' 변경','').replace(' 이전',''))+'</td><td><button class="article-title" data-open="'+esc(r.slug)+'">'+esc(r.title)+'</button><div class="small muted">'+esc(r.slug)+'</div></td><td>'+r.tags.slice(0,3).map(t=>'<span class="tag">'+esc(t)+'</span>').join('')+'</td><td>'+inlineStatusSelect('reviewStatus',r.slug,r.reviewStatus||'pending',REVIEW_STATUS)+'</td><td>'+inlineStatusSelect('status',r.slug,r.status,STATUS)+'</td><td>'+dateTime(r.scheduledAt)+'</td><td>'+dateTime(r.updatedAt)+'</td><td>'+esc(r.updatedBy||r.author)+'</td><td><button data-open="'+esc(r.slug)+'">상세</button></td></tr>').join(''):'<tr><td colspan="12" class="empty">조건에 맞는 콘텐츠가 없습니다.</td></tr>';
  $('selectedCount').textContent=state.selected.size+'건 선택';
  $('selectedActions').hidden=state.selected.size===0;
  if($('deleteSelected'))$('deleteSelected').disabled=deletingSelected||state.selected.size===0;
@@ -50,6 +51,19 @@ function renderList(){
 }
 function ensureLeave(){return !state.dirty||confirm('저장하지 않은 변경사항이 있습니다. 목록으로 이동하시겠습니까?');}
 async function showList(){if(!ensureLeave())return;state.dirty=false;$('editorView').hidden=true;$('listView').hidden=false;document.dispatchEvent(new CustomEvent('qrator:view',{detail:'contents'}));await loadItems();}
+async function updateInlineStatus(select){
+ const slug=select.dataset.slug,field=select.dataset.inlineField,value=select.value;
+ if(!['reviewStatus','status'].includes(field))return;
+ const item=state.items.find(x=>x.slug===slug),previous=item?.[field]||(field==='reviewStatus'?'pending':'draft');
+ select.disabled=true;
+ try{
+  const record=await api('get',null,{slug});
+  const saved=await api('save',{record:{...record,[field]:value},expectedRevision:record.revision});
+  if(item)Object.assign(item,{[field]:saved[field],updatedAt:saved.updatedAt,updatedBy:saved.updatedBy,revision:saved.revision});
+  const label=(field==='reviewStatus'?REVIEW_STATUS:STATUS)[saved[field]]||saved[field];
+  applyFilters();toast((field==='reviewStatus'?'검토 상태':'게시 상태')+'를 “'+label+'”로 변경했습니다.');
+ }catch(e){if(item)item[field]=previous;renderList();throw e;}
+}
 const starterHTML=`<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>등기 가이드 | 큐레이터</title><meta name="description" content="등기 가이드 설명을 입력해 주세요"><meta property="og:type" content="article"><meta name="qrator-template" content="guide-v1"><style>@import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css');
 #qrator-blog{--qb-blue:#1e4bb6;--qb-ink:#1e1e22;--qb-text:#404040;--qb-muted:#737780;--qb-line:#e8e8eb;box-sizing:border-box;width:100%;max-width:788px;margin:0 auto;padding:48px 24px 80px;background:#fff;color:var(--qb-text);font:400 17px/1.6 "Qrator Pretendard",Pretendard,-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;letter-spacing:-.02em;overflow-wrap:break-word}
 #qrator-blog *,#qrator-blog *::before,#qrator-blog *::after{box-sizing:border-box}
@@ -304,7 +318,7 @@ document.querySelectorAll('[data-days]').forEach(b=>b.onclick=()=>{document.quer
 $('sort').onchange=applyFilters;$('pageSize').onchange=()=>{state.page=1;renderList();};
 $('refresh').onclick=guard(loadItems);
 $('rows').onclick=guard(async e=>{const open=e.target.closest('[data-open]');if(open)await openRecord(open.dataset.open);});
-$('rows').onchange=e=>{if(e.target.matches('.row-check')){e.target.checked?state.selected.add(e.target.dataset.slug):state.selected.delete(e.target.dataset.slug);renderList();}};
+$('rows').onchange=guard(async e=>{if(e.target.matches('.row-check')){e.target.checked?state.selected.add(e.target.dataset.slug):state.selected.delete(e.target.dataset.slug);renderList();return;}const select=e.target.closest('[data-inline-field]');if(select)await updateInlineStatus(select);});
 $('selectAll').onchange=e=>{const size=Number($('pageSize').value);state.filtered.slice((state.page-1)*size,state.page*size).forEach(r=>e.target.checked?state.selected.add(r.slug):state.selected.delete(r.slug));renderList();};
 $('pagination').onclick=e=>{const b=e.target.closest('[data-page]');if(b&&!b.disabled){state.page=Number(b.dataset.page);renderList();}};
 $('createButton').onclick=newRecord;$('navContents').onclick=guard(showList);$('backToList').onclick=guard(showList);
