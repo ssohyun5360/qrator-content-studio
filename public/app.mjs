@@ -351,7 +351,7 @@ $('deleteButton').onclick=guard(async()=>{if(!confirm('콘텐츠를 휴지통으
 window.addEventListener('beforeunload',e=>{if(state.dirty){e.preventDefault();e.returnValue='';}});
 
 $('selectFiltered').onclick=()=>{state.filtered.forEach(x=>state.selected.add(x.slug));renderList();};
-$('loginForm').onsubmit=async e=>{e.preventDefault();$('loginButton').disabled=true;$('loginError').textContent='';try{const r=await api('login',{password:$('teamPassword').value});$('teamPassword').value='';state.user=r.user;showWorkspace();let draft;try{draft=JSON.parse(localStorage.getItem(LOCAL_DRAFT_KEY)||'null');}catch{}if(draft?.record&&confirm('브라우저에 자동 저장된 임시 내용이 있습니다. 복구할까요?')){fillEditor({...draft.record,revision:draft.expectedRevision||undefined});state.dirty=true;$('saveState').textContent='임시 저장 내용 복구됨 · 사이트 저장 필요';return;}if(draft)localStorage.removeItem(LOCAL_DRAFT_KEY);await loadItems();}catch(e){$('loginError').textContent=e.message;}finally{$('loginButton').disabled=false;}};
+$('loginForm').onsubmit=async e=>{e.preventDefault();$('loginButton').disabled=true;$('loginError').textContent='';try{const r=await api('login',{password:$('teamPassword').value});$('teamPassword').value='';state.user=r.user;showWorkspace();let draft;try{draft=JSON.parse(localStorage.getItem(LOCAL_DRAFT_KEY)||'null');}catch{}if(draft?.record&&confirm('브라우저에 자동 저장된 임시 내용이 있습니다. 복구할까요?')){fillEditor({...draft.record,revision:draft.expectedRevision||undefined});state.dirty=true;$('saveState').textContent='임시 저장 내용 복구됨 · 사이트 저장 필요';return;}if(draft)localStorage.removeItem(LOCAL_DRAFT_KEY);await loadItems();document.dispatchEvent(new CustomEvent('content-studio:ready'));}catch(e){$('loginError').textContent=e.message;}finally{$('loginButton').disabled=false;}};
 $('logoutButton').onclick=guard(async()=>{if(!ensureLeave())return;await api('logout',{});state.dirty=false;state.items=[];state.selected.clear();showLogin();});
 let trashItems=[];
 async function showTrash(){const r=await api('list',null,{trash:'1'});trashItems=r.items;$('emptyTrashButton').disabled=!trashItems.length;$('trashRows').innerHTML=trashItems.map(x=>'<div class="history-row"><span>'+esc(x.title)+'</span><button data-restore-trash="'+esc(x.slug)+'" data-revision="'+esc(x.revision)+'">복원</button></div>').join('')||'<p>휴지통이 비어 있습니다.</p>';if(!$('trashDialog').open)$('trashDialog').showModal();}
@@ -411,5 +411,5 @@ async function exportGithub(records){
 githubCurrent.onclick=guard(async()=>{if(state.dirty||!state.current?.revision){toast('변경사항을 사이트에 먼저 저장한 뒤 다시 열어 주세요.');return;}await exportGithub([state.current]);});
 githubSelected.onclick=guard(()=>exportGithub(state.items.filter(r=>state.selected.has(r.slug))));
 
-(async()=>{syncSelects();try{const r=await api('session');state.user=r.user;showWorkspace();await loadItems();}catch(e){showLogin();if(e.status!==401)$('loginError').textContent=e.message;}})();
+(async()=>{syncSelects();try{const r=await api('session');state.user=r.user;showWorkspace();await loadItems();document.dispatchEvent(new CustomEvent('content-studio:ready'));}catch(e){showLogin();if(e.status!==401)$('loginError').textContent=e.message;}})();
 

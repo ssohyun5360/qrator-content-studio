@@ -17,6 +17,10 @@ test('API authorization, CSRF, save/list/history/trash/restore workflow',async()
  assert.equal((await call('login',{method:'POST',origin:'https://evil.example',body:{password:env.STUDIO_PASSWORD}})).code,403);
  assert.equal((await call('login',{method:'POST',body:{password:'wrong'}})).code,401);
  const login=await call('login',{method:'POST',body:{password:env.STUDIO_PASSWORD}});assert.equal(login.code,200);assert.match(login.headers['Set-Cookie'],/HttpOnly; Secure; SameSite=Strict/);const cookie=login.headers['Set-Cookie'];
+ assert.equal((await call('getSettings',{cookie})).data.settings,null);
+ const settings=await call('saveSettings',{method:'POST',cookie,body:{settings:{writingRules:'공식 자료를 확인하고 해요체로 작성합니다.'},expectedRevision:null}});assert.equal(settings.code,200);assert.equal(settings.data.settings.ruleVersion,'v1.2');
+ assert.equal((await call('getSettings',{cookie})).data.settings.writingRules,'공식 자료를 확인하고 해요체로 작성합니다.');
+ assert.equal((await call('saveSettings',{method:'POST',cookie,body:{settings:{writingRules:'다른 규칙을 적용합니다.'},expectedRevision:'stale'}})).code,409);
  const first=await call('save',{method:'POST',cookie,body:{record}});assert.equal(first.code,200);
  const second=await call('save',{method:'POST',cookie,body:{record:{...record,title:'수정'},expectedRevision:first.data.revision}});assert.equal(second.code,200);
  assert.equal((await call('save',{method:'POST',cookie,body:{record,expectedRevision:first.data.revision}})).code,409);

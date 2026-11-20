@@ -11,7 +11,7 @@ export default async function handler(req,res){
   if(req.method==='POST'&&req.headers.origin!==new URL(env.APP_ORIGIN).origin)fail(403,'사이트 주소를 확인한 뒤 다시 접속해 주세요.');
   let body=req.body||{};if(typeof body==='string'){if(Buffer.byteLength(body)>MAX_BYTES+10000)fail(413,'전송 용량이 너무 큽니다.');try{body=JSON.parse(body);}catch{fail(400,'잘못된 요청입니다.');}}
   if(Buffer.byteLength(JSON.stringify(body))>MAX_BYTES+10000)fail(413,'전송 용량이 너무 큽니다.');
-  const mutations=['login','logout','save','delete','restore','emptyTrash'];if(mutations.includes(op)&&req.method!=='POST')fail(405,'POST 요청이 필요합니다.');
+  const mutations=['login','logout','save','delete','restore','emptyTrash','saveSettings'];if(mutations.includes(op)&&req.method!=='POST')fail(405,'POST 요청이 필요합니다.');
   const cookie=(value,age)=>res.setHeader('Set-Cookie',`studio_session=${value}; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=${age}`);
   if(op==='login'){
    // Vercel overwrites this header; do not use a user-provided forwarding header.
@@ -27,6 +27,19 @@ export default async function handler(req,res){
   if(!authenticated(req.headers.cookie,env))fail(401,'로그인이 필요합니다.');
   if(op==='session')return send(200,{user:{name:'팀 공용 관리자'}});
   if(op==='list'){const records=await list();return send(200,{items:records.filter(r=>req.query.trash==='1'?!!r.deletedAt:!r.deletedAt).map(summary)});}
+  if(op==='getSettings'){
+   const saved=await read('studio/settings/automation.json');return send(200,{settings:saved?.value||null});
+  }
+  if(op==='saveSettings'){
+   const writingRules=String(body.settings?.writingRules||'').trim();
+   if(writingRules.length<10)fail(400,'작성 규칙을 10자 이상 입력해 주세요.');
+   if(writingRules.length>20000)fail(400,'작성 규칙은 20,000자까지 저장할 수 있습니다.');
+   const key='studio/settings/automation.json';const current=await read(key);
+   if(current&&body.expectedRevision!==current.value.revision)fail(409,'다른 팀원이 작성 규칙을 수정했습니다. 새로고침 후 다시 시도해 주세요.');
+   const versionNumber=(Number(current?.value?.versionNumber)||1)+1;const updatedAt=new Date().toISOString();
+   const next={writingRules,versionNumber,ruleVersion:'v1.'+versionNumber,updatedAt,revision:createHash('sha256').update(writingRules+updatedAt).digest('hex').slice(0,20)};
+   await write(key,next,current?.etag);return send(200,{settings:next});
+  }
   if(op==='emptyTrash'){
    const items=body.items;
    if(!Array.isArray(items)||items.length>500)fail(400,'휴지통 항목을 확인해 주세요.');
