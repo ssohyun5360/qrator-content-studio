@@ -41,7 +41,7 @@ function renderList(){
  const visible=state.filtered.slice((state.page-1)*size,state.page*size);
  const scheduled=state.items.filter(x=>x.status==='scheduled').length,completed=state.items.filter(x=>x.status==='completed').length,published=state.items.filter(x=>x.status==='published').length;
  $('totalCount').textContent='총 '+count+'건  |  게시 예정 '+scheduled+' · 작성 완료 '+completed+' · 게시 완료 '+published;
- $('rows').innerHTML=visible.length?visible.map((r,i)=>'<tr><td><input type="checkbox" class="row-check" data-slug="'+esc(r.slug)+'" aria-label="'+esc(r.title)+' 선택" '+(state.selected.has(r.slug)?'checked':'')+'></td><td>'+(count-(state.page-1)*size-i)+'</td><td>'+(r.thumbnailPath?'<img class="thumb-image" loading="lazy" src="/api/studio?op=thumbnail&slug='+encodeURIComponent(r.slug)+'&path='+encodeURIComponent(r.thumbnailPath)+'" alt="'+esc(r.title)+' 대표 이미지">':'<span class="thumb">'+esc(r.category)+'<br>등기 가이드</span>')+'</td><td>'+esc(r.category.replace(' 변경','').replace(' 이전',''))+'</td><td><button class="article-title" data-open="'+esc(r.slug)+'">'+esc(r.title)+'</button><div class="small muted">'+esc(r.slug)+'</div></td><td>'+r.tags.slice(0,3).map(t=>'<span class="tag">'+esc(t)+'</span>').join('')+'</td><td>'+inlineStatusSelect('reviewStatus',r.slug,r.reviewStatus||'pending',REVIEW_STATUS)+'</td><td>'+inlineStatusSelect('status',r.slug,r.status,STATUS)+'</td><td>'+dateTime(r.scheduledAt)+'</td><td>'+dateTime(r.updatedAt)+'</td><td>'+esc(r.updatedBy||r.author)+'</td><td><button data-open="'+esc(r.slug)+'">상세</button></td></tr>').join(''):'<tr><td colspan="12" class="empty">조건에 맞는 콘텐츠가 없습니다.</td></tr>';
+ $('rows').innerHTML=visible.length?visible.map((r,i)=>'<tr><td><input type="checkbox" class="row-check" data-slug="'+esc(r.slug)+'" aria-label="'+esc(r.title)+' 선택" '+(state.selected.has(r.slug)?'checked':'')+'></td><td>'+(count-(state.page-1)*size-i)+'</td><td>'+(r.thumbnailPath?'<img class="thumb-image" loading="lazy" src="/api/studio?op=thumbnail&slug='+encodeURIComponent(r.slug)+'&path='+encodeURIComponent(r.thumbnailPath)+'" alt="'+esc(r.title)+' 대표 이미지">':'<span class="thumb">'+esc(r.category)+'<br>등기 가이드</span>')+'</td><td>'+esc(r.category.replace(' 변경','').replace(' 이전',''))+'</td><td><button class="article-title" data-open="'+esc(r.slug)+'">'+esc(r.title)+'</button><div class="small muted">'+esc(r.slug)+'</div></td><td>'+r.tags.slice(0,3).map(t=>'<span class="tag">'+esc(t)+'</span>').join('')+'</td><td>'+inlineStatusSelect('reviewStatus',r.slug,r.reviewStatus||'pending',REVIEW_STATUS)+'</td><td>'+inlineStatusSelect('status',r.slug,r.status,STATUS)+'</td><td>'+dateTime(r.scheduledAt)+'</td><td>'+dateTime(r.updatedAt)+'</td><td>'+esc(r.updatedBy||r.author)+'</td><td><button class="danger table-trash-button" data-trash="'+esc(r.slug)+'" data-revision="'+esc(r.revision)+'">휴지통</button></td></tr>').join(''):'<tr><td colspan="12" class="empty">조건에 맞는 콘텐츠가 없습니다.</td></tr>';
  $('selectedCount').textContent=state.selected.size+'건 선택';
  $('selectedActions').hidden=state.selected.size===0;
  if($('deleteSelected'))$('deleteSelected').disabled=deletingSelected||state.selected.size===0;
@@ -51,6 +51,16 @@ function renderList(){
 }
 function ensureLeave(){return !state.dirty||confirm('저장하지 않은 변경사항이 있습니다. 목록으로 이동하시겠습니까?');}
 async function showList(){if(!ensureLeave())return;state.dirty=false;$('editorView').hidden=true;$('listView').hidden=false;document.dispatchEvent(new CustomEvent('qrator:view',{detail:'contents'}));await loadItems();}
+async function moveToTrashFromList(button){
+ const slug=button.dataset.trash,item=state.items.find(x=>x.slug===slug);
+ if(!item)return;
+ if(!confirm('“'+item.title+'” 글을 휴지통으로 이동할까요?'))return;
+ button.disabled=true;
+ try{
+  await api('delete',{slug,expectedRevision:button.dataset.revision});
+  state.selected.delete(slug);await loadItems();toast('휴지통으로 이동했습니다.');
+ }catch(e){button.disabled=false;throw e;}
+}
 async function updateInlineStatus(select){
  const slug=select.dataset.slug,field=select.dataset.inlineField,value=select.value;
  if(!['reviewStatus','status'].includes(field))return;
@@ -317,7 +327,7 @@ document.querySelectorAll('[data-days]').forEach(b=>b.onclick=()=>{document.quer
  $('dateTo').value=b.dataset.days==='all'?'':kstDate(new Date());$('dateFrom').value=b.dataset.days==='all'?'':kstDate(new Date(Date.now()-Number(b.dataset.days)*86400000));});
 $('sort').onchange=applyFilters;$('pageSize').onchange=()=>{state.page=1;renderList();};
 $('refresh').onclick=guard(loadItems);
-$('rows').onclick=guard(async e=>{const open=e.target.closest('[data-open]');if(open)await openRecord(open.dataset.open);});
+$('rows').onclick=guard(async e=>{const trash=e.target.closest('[data-trash]');if(trash){await moveToTrashFromList(trash);return;}const open=e.target.closest('[data-open]');if(open)await openRecord(open.dataset.open);});
 $('rows').onchange=guard(async e=>{if(e.target.matches('.row-check')){e.target.checked?state.selected.add(e.target.dataset.slug):state.selected.delete(e.target.dataset.slug);renderList();return;}const select=e.target.closest('[data-inline-field]');if(select)await updateInlineStatus(select);});
 $('selectAll').onchange=e=>{const size=Number($('pageSize').value);state.filtered.slice((state.page-1)*size,state.page*size).forEach(r=>e.target.checked?state.selected.add(r.slug):state.selected.delete(r.slug));renderList();};
 $('pagination').onclick=e=>{const b=e.target.closest('[data-page]');if(b&&!b.disabled){state.page=Number(b.dataset.page);renderList();}};
