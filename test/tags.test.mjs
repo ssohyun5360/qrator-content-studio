@@ -148,3 +148,23 @@ test('스튜디오에서 직접 저장: 태그를 건드리지 않으면 예전 
  assert.equal(save.code,200);
  assert.deepEqual(stored('t-8').tags,cur.tags);
 });
+
+test('일괄 정리: 미리보기는 저장하지 않고, 실행하면 긴 태그가 주제 태그 + 키워드로 정리된다(이력·검토 상태 유지)',async()=>{
+ store.clear();
+ const long=['본점이전','본점이전등기','사업자등록정정','4대보험변경','법인세납세지','사무실이전','법인등기','변경등기','셀프등기','큐레이터'];
+ await callStudio('save',{record:rec('old-1',{category:'본점 이전',tags:long,status:'draft'}),expectedRevision:null});
+ await callStudio('save',{record:rec('old-2',{category:'상호 변경',tags:['영문 상호','정관'],status:'draft'}),expectedRevision:null});
+ store.set('studio/records/old-1.json',{etag:'50',body:JSON.stringify({...stored('old-1'),tags:long,keywords:[]})});
+ const before=stored('old-1');
+ const dry=await callStudio('retagAll',{dryRun:true});
+ assert.equal(dry.code,200);assert.equal(dry.data.dryRun,true);
+ assert.equal(dry.data.count,1,'이미 정리된 글(old-2)은 건드리지 않는다');
+ assert.deepEqual(stored('old-1').tags,long,'미리보기는 저장하지 않는다');
+ const run=await callStudio('retagAll',{dryRun:false});
+ assert.equal(run.data.done,1);assert.deepEqual(run.data.failed,[]);
+ const after=stored('old-1');
+ assert.deepEqual(after.tags,['사업자등록','4대보험','법인세·세무','임대차계약']);
+ assert.equal(after.keywords.length,long.length);assert.ok(after.keywords.includes('큐레이터'));
+ assert.equal(after.revision,before.revision);assert.equal(after.reviewStatus,before.reviewStatus);assert.equal(after.updatedAt,before.updatedAt);
+ assert.equal((await callStudio('retagAll',{dryRun:true})).data.count,0,'다시 실행해도 바뀌는 글이 없다');
+});

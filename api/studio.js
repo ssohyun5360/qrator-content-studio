@@ -1,7 +1,7 @@
 import {createHash} from 'node:crypto';
 import {authenticated,session,equal,fail,slug,validate,nextRecord,summary,MAX_BYTES} from '../lib/core.mjs';
 import {read,write,list,remove,removePrefix} from '../lib/storage.mjs';
-import {loadTagDict,normalizeRecordTags} from '../lib/tags-store.mjs';
+import {loadTagDict,normalizeRecordTags,retagAll} from '../lib/tags-store.mjs';
 import {topicLabels,tagGroups} from '../lib/tags.mjs';
 export default async function handler(req,res){
  res.setHeader('Cache-Control','private, no-store');res.setHeader('X-Content-Type-Options','nosniff');
@@ -13,7 +13,7 @@ export default async function handler(req,res){
   if(req.method==='POST'&&req.headers.origin!==new URL(env.APP_ORIGIN).origin)fail(403,'사이트 주소를 확인한 뒤 다시 접속해 주세요.');
   let body=req.body||{};if(typeof body==='string'){if(Buffer.byteLength(body)>MAX_BYTES+10000)fail(413,'전송 용량이 너무 큽니다.');try{body=JSON.parse(body);}catch{fail(400,'잘못된 요청입니다.');}}
   if(Buffer.byteLength(JSON.stringify(body))>MAX_BYTES+10000)fail(413,'전송 용량이 너무 큽니다.');
-  const mutations=['login','logout','save','delete','restore','emptyTrash','saveSettings','saveHomeqSettings','generateHomeqWeekly'];if(mutations.includes(op)&&req.method!=='POST')fail(405,'POST 요청이 필요합니다.');
+  const mutations=['login','logout','save','delete','restore','emptyTrash','saveSettings','saveHomeqSettings','generateHomeqWeekly','retagAll'];if(mutations.includes(op)&&req.method!=='POST')fail(405,'POST 요청이 필요합니다.');
   const cookie=(value,age)=>res.setHeader('Set-Cookie',`studio_session=${value}; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=${age}`);
   if(op==='login'){
    // Vercel overwrites this header; do not use a user-provided forwarding header.
@@ -34,6 +34,7 @@ export default async function handler(req,res){
    const items=records.filter(r=>req.query.trash==='1'?!!r.deletedAt:!r.deletedAt).map(r=>({...summary(r),topicTags:dict?topicLabels(r,dict):[]}));
    return send(200,{items,tagGroups:dict?tagGroups(items,dict):[]});
   }
+  if(op==='retagAll')return send(200,await retagAll({dryRun:body.dryRun!==false}));
   if(op==='getSettings'){
    const saved=await read('studio/settings/automation.json');return send(200,{settings:saved?.value||null});
   }

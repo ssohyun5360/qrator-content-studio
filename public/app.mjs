@@ -299,6 +299,16 @@ async function showHistory(){
 function guard(action){return async(...args)=>{try{await action(...args);}catch(e){toast(e.message);}};}
 $('filterForm').onsubmit=e=>{e.preventDefault();applyFilters();};
 $('resetFilters').onclick=()=>{$('filterForm').reset();applyFilters();};
+$('retagButton').onclick=guard(async()=>{
+ if(!ensureLeave())return;
+ const plan=await api('retagAll',{dryRun:true});
+ if(!plan.count){toast('정리할 글이 없습니다. 모두 정리되어 있어요.');return;}
+ const lines=plan.items.slice(0,8).map(x=>'· '+x.title+'\n   → '+x.tags.join(', ')+(x.added.length?'  (새 태그: '+x.added.join(', ')+')':'')).join('\n');
+ if(!confirm('전체 '+plan.total+'편 중 '+plan.count+'편의 태그를 정리합니다.\n기존 태그는 "검색 키워드"로 보관되어 지워지지 않습니다.\n\n'+lines+(plan.count>8?'\n… 외 '+(plan.count-8)+'편':'')+'\n\n진행할까요?'))return;
+ const done=await api('retagAll',{dryRun:false});
+ toast(done.done+'편 정리했습니다.'+(done.failed.length?' 실패 '+done.failed.length+'편(다른 사람이 수정 중): 다시 눌러 주세요.':''));
+ await loadItems();
+});
 document.querySelectorAll('[data-days]').forEach(b=>b.onclick=()=>{document.querySelectorAll('[data-days]').forEach(x=>x.classList.toggle('period-active',x===b));
  $('dateTo').value=b.dataset.days==='all'?'':kstDate(new Date());$('dateFrom').value=b.dataset.days==='all'?'':kstDate(new Date(Date.now()-Number(b.dataset.days)*86400000));});
 $('sort').onchange=applyFilters;$('pageSize').onchange=()=>{state.page=1;renderList();};
