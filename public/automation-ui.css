@@ -12,3 +12,7 @@
 
 /* Keep split actions and dropdown icons on the same 36px control grid. */
 .create-split{height:36px;align-items:stretch}.create-split>button{height:36px}.create-menu{height:36px}.create-menu>summary{width:38px;height:36px;min-height:36px;font-size:0}.create-menu>summary span{width:8px;height:8px;border-right:1.5px solid currentColor;border-bottom:1.5px solid currentColor;transform:translateY(-2px) rotate(45deg)}
+
+/* Project switcher and isolated project workspace */
+.project-switcher{display:block;margin:0 0 24px;padding:0 6px}.project-switcher>span{display:block;margin:0 6px 8px;color:#8b919d;font-size:11px;font-weight:700;letter-spacing:.04em}.project-switcher select{width:100%;height:42px;padding-left:12px;background-color:#fff;border-color:#d8dde6;color:#252b35;font-size:13px;font-weight:700}.project-placeholder{max-width:1200px}.auto-version.homeq{background:#f0eaff;color:#6b48c8}.project-placeholder-card{min-height:230px;display:flex;align-items:center;justify-content:center;gap:24px;text-align:left}.project-placeholder-icon{width:64px;height:64px;display:grid;place-items:center;flex:0 0 auto;border-radius:18px;background:#6b48c8;color:#fff;font-size:28px;font-weight:800}.project-placeholder-card h2{font-size:22px;margin-bottom:8px}.project-placeholder-card p{color:#505866;margin-bottom:7px}.project-placeholder-card small{color:#89919e}
+@media(max-width:760px){.project-placeholder-card{align-items:flex-start;justify-content:flex-start;flex-direction:column}.project-placeholder-icon{width:52px;height:52px;border-radius:14px;font-size:23px}}
