@@ -11,7 +11,7 @@ export default async function handler(req,res){
   if(req.method==='POST'&&req.headers.origin!==new URL(env.APP_ORIGIN).origin)fail(403,'사이트 주소를 확인한 뒤 다시 접속해 주세요.');
   let body=req.body||{};if(typeof body==='string'){if(Buffer.byteLength(body)>MAX_BYTES+10000)fail(413,'전송 용량이 너무 큽니다.');try{body=JSON.parse(body);}catch{fail(400,'잘못된 요청입니다.');}}
   if(Buffer.byteLength(JSON.stringify(body))>MAX_BYTES+10000)fail(413,'전송 용량이 너무 큽니다.');
-  const mutations=['login','logout','save','delete','restore','emptyTrash','saveSettings','saveHomeqSettings'];if(mutations.includes(op)&&req.method!=='POST')fail(405,'POST 요청이 필요합니다.');
+  const mutations=['login','logout','save','delete','restore','emptyTrash','saveSettings','saveHomeqSettings','generateHomeqWeekly'];if(mutations.includes(op)&&req.method!=='POST')fail(405,'POST 요청이 필요합니다.');
   const cookie=(value,age)=>res.setHeader('Set-Cookie',`studio_session=${value}; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=${age}`);
   if(op==='login'){
    // Vercel overwrites this header; do not use a user-provided forwarding header.
@@ -56,6 +56,20 @@ export default async function handler(req,res){
    if(current&&body.expectedRevision!==current.value.revision)fail(409,'다른 팀원이 주간뉴스 설정을 수정했습니다. 새로고침 후 다시 시도해 주세요.');
    const versionNumber=(Number(current?.value?.versionNumber)||0)+1;next.versionNumber=versionNumber;next.ruleVersion='v1.'+versionNumber;next.revision=createHash('sha256').update(JSON.stringify(next)).digest('hex').slice(0,20);
    await write(key,next,current?.etag);return send(200,{settings:next});
+  }
+  if(op==='getHomeqWeekly'){
+   const week=String(req.query.week||'');if(!/^\d{4}-W(?:0[1-9]|[1-4]\d|5[0-3])$/.test(week))fail(400,'대상 주차를 확인해 주세요.');
+   const saved=await read('studio/homeq/weekly/'+week+'.json');return send(200,{item:saved?.value||null});
+  }
+  if(op==='generateHomeqWeekly'){
+   const {validateHomeqWeek,generateHomeqWeekly,DEFAULT_HOMEQ_RULES}=await import('../lib/homeq-weekly.mjs');
+   const targetWeek=validateHomeqWeek(body.targetWeek);const topicMode=String(body.topicMode||'auto');if(!['auto','review'].includes(topicMode))fail(400,'주제 선정 방식을 확인해 주세요.');
+   const settings=(await read('studio/settings/homeq-weekly-news.json'))?.value||{topicCount:3,writingRules:DEFAULT_HOMEQ_RULES,ruleVersion:'기본값'};
+   const topicCount=Number(settings.topicCount)||3;const now=new Date();const today=new Intl.DateTimeFormat('ko-KR',{timeZone:'Asia/Seoul',dateStyle:'long'}).format(now);let generated;
+   try{generated=await generateHomeqWeekly({targetWeek,topicCount,writingRules:settings.writingRules||DEFAULT_HOMEQ_RULES,today});}
+   catch(error){console.error('HomeQ AI generation failed',error?.name,{status:error?.statusCode||error?.status,code:error?.code});if([401,403].includes(error?.statusCode||error?.status))fail(503,'AI 연결 권한을 확인해 주세요. Vercel AI Gateway 연결이 필요합니다.');if((error?.statusCode||error?.status)===402)fail(503,'AI 사용 한도를 확인해 주세요. Vercel AI Gateway 크레딧이 필요합니다.');fail(503,'AI 원고 생성에 실패했습니다. 잠시 후 다시 시도해 주세요.');}
+   const key='studio/homeq/weekly/'+targetWeek+'.json';const current=await read(key);const next={id:'homeq-weekly-'+targetWeek,targetWeek,topicMode,status:topicMode==='review'?'topic_review':'draft',model:'openai/gpt-5.4-mini',ruleVersion:settings.ruleVersion||'기본값',createdAt:current?.value?.createdAt||now.toISOString(),updatedAt:now.toISOString(),versionNumber:(Number(current?.value?.versionNumber)||0)+1,...generated};
+   next.revision=createHash('sha256').update(JSON.stringify(next)).digest('hex').slice(0,20);await write(key,next,current?.etag);return send(200,{item:next});
   }
   if(op==='emptyTrash'){
    const items=body.items;
