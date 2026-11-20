@@ -39,7 +39,8 @@ test('끝까지 실행: 주제 → 중복검사 → 원고 → 검사 → 템플
  assert.equal(record.verification,'AI 생성 초안 · 관리자 검토 전');
  assert.ok(record.aiReview&&typeof record.aiReview==='object');
  assert.match(record.slug,/^mock-sample-/);
- assert.ok(record.tags.length>=5);
+ assert.ok(record.tags.length>=2&&record.tags.length<=4,'주제 태그는 2~4개');
+ assert.ok(record.keywords.length>=5,'해시태그는 검색 키워드로 남는다');
 });
 
 test('저장된 글은 썸네일 API 규칙과 같은 경로·형식의 16:9 SVG 를 가진다',async()=>{

@@ -1,7 +1,8 @@
 import {equal,fail,nextRecord,MAX_BYTES} from '../lib/core.mjs';
 import {read,write} from '../lib/storage.mjs';
+import {normalizeRecordTags} from '../lib/tags-store.mjs';
 
-const COMPARE_KEYS=['title','category','summary','author','note','verification','seoTitle','seoDescription','html','entryPath','assets','tags','sourceUrls','status','reviewStatus'];
+const COMPARE_KEYS=['title','category','summary','author','note','verification','seoTitle','seoDescription','html','entryPath','assets','tags','keywords','sourceUrls','status','reviewStatus'];
 function sameContent(a,b){return JSON.stringify(COMPARE_KEYS.map(k=>a[k]??null))===JSON.stringify(COMPARE_KEYS.map(k=>b[k]??null));}
 
 export default async function handler(req,res){
@@ -33,6 +34,11 @@ if(!authorization.startsWith('Bearer ')||!tokens.some(t=>equal(authorization.sli
   const current=await read(key);
   const wantsReplace=body.replace===true||body.record?.replace===true;
   if(current&&!wantsReplace)fail(409,'같은 상세 주소의 글이 이미 있습니다. 관리 화면에서 기존 글을 확인해 주세요.');
+
+  // 들어온 해시태그를 사전 기준 주제 태그(2~4개)와 검색 키워드로 나눈다. 사전에 없는 주제는 승인 없이 추가된다.
+  // 사전은 부가 기능이므로 저장소 문제로 글 등록이 막히지 않게, 실패하면 들어온 태그를 키워드로만 남긴다.
+  try{const t=await normalizeRecordTags(record);record.tags=t.tags;record.keywords=t.keywords;}
+  catch(e){console.error('Tag normalize failed',e.name);record.keywords=[...new Set([...(record.keywords||[]),...(record.tags||[])])].slice(0,50);record.tags=[];}
 
   const next=nextRecord(record,null,null);
   if(current){

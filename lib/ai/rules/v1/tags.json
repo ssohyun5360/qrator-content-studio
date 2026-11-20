@@ -1,0 +1,54 @@
+{
+  "_note": "주제 태그 사전(시작값). 스튜디오 필터·탭에서 조회하는 태그를 개념 하나에 하나씩만 둔다. 변형 표기는 aliases 로 합친다. 운영 중 추가·합치기는 서버가 S3(studio/settings/tag-dictionary.json)에 저장하며, 이 파일은 처음 값과 규칙 기본값이다. seedVersion 을 올리면 새 시작 태그가 기존 사전에 합쳐진다.",
+  "seedVersion": 1,
+  "rules": {
+    "tagsPerPost": { "min": 2, "max": 4 },
+    "maxNewPerPost": 2,
+    "maxLabelLength": 14,
+    "minLabelLength": 2,
+    "similarityMerge": 0.6,
+    "totalSoftLimit": 80
+  },
+  "keywordOnly": ["법인등기", "변경등기", "셀프등기", "큐레이터", "등기가이드"],
+  "categoryDuplicates": ["본점 이전", "상호 변경", "임원 변경", "목적 변경", "지점 변경", "본점이전", "상호변경", "임원변경", "목적변경", "지점변경", "본점이전등기", "상호변경등기", "임원변경등기", "목적변경등기", "지점변경등기", "법인본점이전", "법인목적변경", "법인상호", "법인명변경", "법인명", "법인임원", "본점", "상호", "임원", "목적", "지점"],
+  "groups": ["시기·절차", "의사결정·정관", "후속 업무", "서류·열람", "임원", "상호", "본점", "목적", "제도", "기타"],
+  "tags": [
+    { "id": "deadline", "label": "등기 기한", "group": "시기·절차", "categories": [], "aliases": ["등기기한", "신청기한", "기한", "법정기한"] },
+    { "id": "penalty", "label": "과태료", "group": "시기·절차", "categories": [], "aliases": ["등기 지연", "기한 경과", "기한 도과", "과태료 부과"] },
+    { "id": "effective-date", "label": "효력 발생 시기", "group": "시기·절차", "categories": [], "aliases": ["효력일", "효력발생", "효력 발생일", "이전일", "실제 이전일"] },
+    { "id": "procedure", "label": "준비 순서", "group": "시기·절차", "categories": [], "aliases": ["절차", "순서", "준비순서", "진행 순서", "총정리"] },
+    { "id": "documents", "label": "필요 서류", "group": "시기·절차", "categories": [], "aliases": ["준비 서류", "준비서류", "첨부서류", "서류", "서류 작성"] },
+    { "id": "cost", "label": "비용·수수료", "group": "시기·절차", "categories": [], "aliases": ["비용", "수수료", "수수료 인상", "등록면허세", "발급 수수료"] },
+    { "id": "jurisdiction", "label": "관할(관내·관외)", "group": "시기·절차", "categories": ["본점 이전", "지점 변경"], "aliases": ["관내", "관외", "관할", "관할 등기소", "관내 이전", "관외 이전"] },
+
+    { "id": "articles", "label": "정관", "group": "의사결정·정관", "categories": [], "aliases": ["정관변경", "정관 변경", "정관 개정", "정관개정", "정관변경효력", "정관 확인", "정관 보는 법", "정관 문구"] },
+    { "id": "resolution", "label": "결의·의사록", "group": "의사결정·정관", "categories": [], "aliases": ["주주총회", "주주총회결의", "주주총회 결의", "주주총회특별결의", "특별결의", "서면결의", "주총", "이사회", "이사회결의", "이사회 결의", "이사회의사록", "의사록", "의사록 작성", "결의서", "주주총회의사록"] },
+    { "id": "solo-corp", "label": "1인 법인", "group": "의사결정·정관", "categories": [], "aliases": ["1인법인", "1인 주주", "1인 회사"] },
+
+    { "id": "business-registration", "label": "사업자등록", "group": "후속 업무", "categories": [], "aliases": ["사업자등록정정", "사업자등록 정정", "사업장주소변경", "사업장 주소", "사업자등록증"] },
+    { "id": "social-insurance", "label": "4대보험", "group": "후속 업무", "categories": [], "aliases": ["4대보험변경", "4대보험 변경", "건강보험", "국민연금", "고용보험", "산재보험"] },
+    { "id": "bank", "label": "은행·통장", "group": "후속 업무", "categories": [], "aliases": ["통장", "은행", "은행 변경", "은행·통장 변경", "계좌", "통장 변경"] },
+    { "id": "seal", "label": "인감·인감증명서", "group": "후속 업무", "categories": [], "aliases": ["법인인감", "인감증명서", "인감신고", "인감", "법인인감증명서"] },
+    { "id": "corporate-tax", "label": "법인세·세무", "group": "후속 업무", "categories": [], "aliases": ["법인세", "법인세납세지", "납세지", "세무서", "세무", "부가가치세"] },
+    { "id": "after-registration", "label": "등기 후 할 일", "group": "후속 업무", "categories": [], "aliases": ["이전후할일", "등기 후", "등기후", "후속 절차", "후속 업무"] },
+
+    { "id": "registry-copy", "label": "등기사항증명서", "group": "서류·열람", "categories": [], "aliases": ["등기부등본", "등기부", "등기사항증명서 발급", "등기부등본 발급", "열람"] },
+
+    { "id": "director", "label": "이사 선임·퇴임", "group": "임원", "categories": ["임원 변경"], "aliases": ["이사 사임·퇴임", "이사사임", "이사퇴임", "퇴임등기", "퇴임 등기", "사임서", "사임", "퇴임", "후임이사", "이사선임", "이사 선임", "취임등기", "취임", "선임", "신임 이사"] },
+    { "id": "term-expiry", "label": "임기 만료·중임", "group": "임원", "categories": ["임원 변경"], "aliases": ["임기만료", "임기 만료", "중임", "중임등기", "임원 임기", "임기"] },
+    { "id": "representative", "label": "대표이사", "group": "임원", "categories": ["임원 변경"], "aliases": ["대표이사변경", "대표이사 변경", "대표이사사임", "대표이사 선임", "대표 변경"] },
+    { "id": "officer-address", "label": "임원 주소", "group": "임원", "categories": ["임원 변경"], "aliases": ["대표 주소", "대표 주소변경", "임원 주소 변경", "임원주소", "대표이사 주소", "주소변경"] },
+    { "id": "auditor", "label": "감사", "group": "임원", "categories": ["임원 변경"], "aliases": ["감사 선임", "감사 확인사항", "감사 확인"] },
+
+    { "id": "duplicate-name", "label": "동일 상호 확인", "group": "상호", "categories": ["상호 변경"], "aliases": ["동일상호", "동일 상호", "상호 중복", "상호 검색", "같은 이름"] },
+    { "id": "english-name", "label": "영문 상호", "group": "상호", "categories": ["상호 변경"], "aliases": ["영문상호", "법인영문명", "로마자병기", "상호표기", "상호 표기", "주식회사위치", "주식회사 위치"] },
+    { "id": "provisional-name", "label": "상호 가등기", "group": "상호", "categories": ["상호 변경"], "aliases": ["상호가등기", "가등기"] },
+
+    { "id": "lease", "label": "임대차계약", "group": "본점", "categories": ["본점 이전"], "aliases": ["임대차계약서", "임대차", "사무실 계약", "사무실이전", "사무실 이전"] },
+    { "id": "address-match", "label": "주소 일치 확인", "group": "본점", "categories": ["본점 이전"], "aliases": ["법인주소변경", "주소 맞추기", "서류 주소", "주소 일치", "법인주소"] },
+
+    { "id": "purpose", "label": "사업 목적·업종", "group": "목적", "categories": ["목적 변경"], "aliases": ["업종 추가", "업종추가", "업종", "업종 변경", "업태", "사업 목적", "법인 목적", "목적 문구", "목적 작성", "목적 문구 작성", "신사업"] },
+
+    { "id": "rule-change", "label": "제도 개정", "group": "제도", "categories": [], "aliases": ["개정", "세율 인상", "법인세율 인상", "수수료 개정", "제도 변경"] }
+  ]
+}

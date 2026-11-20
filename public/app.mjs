@@ -22,17 +22,17 @@ function markDirty(){state.dirty=true;$('saveState').textContent='변경사항 �
 function syncSelects(){
  for(const id of ['categoryFilter','editCategory']){const selected=$(id).value;$(id).innerHTML=(id==='categoryFilter'?'<option value="">카테고리 전체</option>':'')+CATEGORIES.map(x=>'<option>'+esc(x)+'</option>').join('');$(id).value=selected|| (id==='editCategory'?CATEGORIES[0]:'');}
  for(const id of ['statusFilter','editStatus']){const selected=$(id).value;$(id).innerHTML=(id==='statusFilter'?'<option value="">게시 상태 전체</option>':'')+Object.entries(STATUS).map(([k,v])=>'<option value="'+k+'">'+v+'</option>').join('');$(id).value=selected||(id==='editStatus'?'draft':'');}
- const selected=$('tagFilter').value;$('tagFilter').innerHTML='<option value="">태그 전체</option>'+[...new Set(state.items.flatMap(x=>x.tags))].sort().map(x=>'<option>'+esc(x)+'</option>').join('');$('tagFilter').value=selected;
+ const selected=$('tagFilter').value;$('tagFilter').innerHTML='<option value="">태그 전체</option>'+(state.tagGroups||[]).map(g=>'<optgroup label="'+esc(g.group)+'">'+g.tags.map(t=>'<option value="'+esc(t.label)+'">'+esc(t.label)+' ('+t.count+')</option>').join('')+'</optgroup>').join('');$('tagFilter').value=selected;
  const reviewSelected=$('reviewFilter').value;$('reviewFilter').innerHTML='<option value="">검토 상태 전체</option>'+Object.entries(REVIEW_STATUS).map(([k,v])=>'<option value="'+k+'">'+v+'</option>').join('');$('reviewFilter').value=reviewSelected;
 }
 async function loadItems(){
  $('rows').innerHTML='<tr><td colspan="14" class="empty">콘텐츠를 불러오는 중입니다.</td></tr>';
- try{const result=await api('list');state.items=result.items.map(x=>({...x,status:normalizeStatus(x.status)}));syncSelects();applyFilters();}catch(e){$('rows').innerHTML='<tr><td colspan="14" class="empty">'+esc(e.message)+'</td></tr>';$('totalCount').textContent='불러오기 실패';throw e;}
+ try{const result=await api('list');state.items=result.items.map(x=>({...x,status:normalizeStatus(x.status)}));state.tagGroups=result.tagGroups||[];syncSelects();applyFilters();}catch(e){$('rows').innerHTML='<tr><td colspan="14" class="empty">'+esc(e.message)+'</td></tr>';$('totalCount').textContent='불러오기 실패';throw e;}
 }
 function applyFilters(){
  const field=$('searchField').value,query=$('search').value.trim().toLowerCase(),category=$('categoryFilter').value,status=$('statusFilter').value,review=$('reviewFilter').value,tag=$('tagFilter').value,from=$('dateFrom').value,to=$('dateTo').value,dateField=$('dateField').value;
  if(from&&to&&from>to){toast('시작일과 종료일을 확인해 주세요.');return;}
- state.filtered=state.items.filter(x=>(!query||String(x[field]||'').toLowerCase().includes(query))&&(!category||x.category===category)&&(!status||x.status===status)&&(!review||(x.reviewStatus||'pending')===review)&&(!tag||x.tags.includes(tag))&&(!from||kstDate(x[dateField])>=from)&&(!to||kstDate(x[dateField])<=to));
+ state.filtered=state.items.filter(x=>(!query||String(x[field]||'').toLowerCase().includes(query))&&(!category||x.category===category)&&(!status||x.status===status)&&(!review||(x.reviewStatus||'pending')===review)&&(!tag||(x.topicTags||x.tags||[]).includes(tag))&&(!from||kstDate(x[dateField])>=from)&&(!to||kstDate(x[dateField])<=to));
  const sort=$('sort').value;state.filtered.sort((a,b)=>sort==='title'?a.title.localeCompare(b.title,'ko'):b[sort].localeCompare(a[sort]));state.page=1;renderList();
 }
 function renderList(){
@@ -185,7 +185,7 @@ function enforceFixedDisclosure(html,record){
 }
 function recordFromForm(){
  const r=clone(state.current);
- r.title=$('editTitle').value.trim();r.category=$('editCategory').value;r.author=$('editAuthor').value;r.summary=$('editSummary').value;r.slug=$('editSlug').value.trim();r.tags=$('editTags').value.split(',').map(x=>x.trim()).filter(Boolean);r.status=$('editStatus').value;
+ r.title=$('editTitle').value.trim();r.category=$('editCategory').value;r.author=$('editAuthor').value;r.summary=$('editSummary').value;r.slug=$('editSlug').value.trim();r.tags=$('editTags').value.split(',').map(x=>x.trim()).filter(Boolean);r.keywords=$('editKeywords').value.split(',').map(x=>x.trim().replace(/^#/,'')).filter(Boolean);r.status=$('editStatus').value;
  r.scheduledAt=$('editSchedule').value?new Date($('editSchedule').value+':00+09:00').toISOString():null;
  r.note=$('editNote').value;r.sourceUrls=$('editSources').value.split('\n').map(x=>x.trim()).filter(Boolean);r.reviewStatus=$('editReviewStatus').value;r.seoTitle=$('seoTitle').value||r.title;r.seoDescription=$('seoDescription').value||r.summary;
  if(state.mode==='code')r.html=$('htmlEditor').value;else if(state.editorReady)r.html=editedHTML($('visualEditor').contentDocument,r);
@@ -228,7 +228,7 @@ function fillEditor(record,initialMode='visual'){
  $('listView').hidden=true;$('editorView').hidden=false;$('editorTitle').textContent=record.revision?'등기 가이드 수정':'등기 가이드 작성';
  $('editTitle').value=record.title;$('editCategory').value=record.category;$('editAuthor').value=record.author;
  $('editSummary').value=record.summary;$('editSlug').value=record.slug;$('editSlug').readOnly=!!record.revision;$('slugHint').textContent=record.revision?'등록된 콘텐츠의 주소는 고정됩니다.':'영문 소문자·숫자·하이픈';
- $('editTags').value=record.tags.join(', ');$('editStatus').value=record.status;$('editSchedule').value=toInput(record.scheduledAt);
+ $('editTags').value=record.tags.join(', ');$('editKeywords').value=(record.keywords||[]).join(', ');$('editStatus').value=record.status;$('editSchedule').value=toInput(record.scheduledAt);
  $('editNote').value=record.note||'';$('editSources').value=(record.sourceUrls||[]).join('\n');$('editReviewStatus').value=record.reviewStatus||((record.verification||'').includes('완료')?'complete':((record.verification||'').includes('수정')?'needs_revision':((record.verification||'').includes('검토 중')?'in_review':'pending')));
  $('seoTitle').value=record.seoTitle||record.title;$('seoDescription').value=record.seoDescription||record.summary;
  $('titleLength').textContent=record.title.length+' / 100';$('saveState').textContent=record.revision?'저장됨':'작성 중 · 저장 필요';
