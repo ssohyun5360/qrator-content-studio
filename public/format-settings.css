@@ -1,0 +1,32 @@
+.fmt-settings{margin-top:20px}
+.fmt-settings summary{grid-template-columns:145px 1fr auto 20px}
+.fmt-body{padding:4px 20px 20px;display:grid;gap:18px}
+.fmt-note{margin:0;color:#5d6574;font-size:13px;line-height:1.65}
+.fmt-presets{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:13px;color:#737a88}
+.fmt-presets button,.fmt-actions button{min-height:34px;padding:0 14px;border:1px solid #cfd5df;border-radius:6px;background:#fff;color:#2b3240;font:inherit;font-size:13px;cursor:pointer}
+.fmt-presets button:hover,.fmt-actions button:hover:not(:disabled){background:#f3f5f9}
+.fmt-actions button.primary{background:#1a52d1;border-color:#1a52d1;color:#fff}
+.fmt-actions button.primary:hover:not(:disabled){background:#1745b0}
+.fmt-actions button:disabled{opacity:.45;cursor:not-allowed}
+.fmt-grid{display:grid;grid-template-columns:1fr 1.4fr;gap:28px}
+.fmt-col h3{margin:0 0 10px;font-size:13px;color:#737a88;font-weight:600}
+.fmt-row{display:grid;grid-template-columns:130px 1fr auto;gap:10px;align-items:center;min-height:40px;font-size:14px}
+.fmt-row>span:first-child{color:#2b3240}
+.fmt-row select,.fmt-num input{height:34px;border:1px solid #cfd5df;border-radius:6px;padding:0 10px;font:inherit;background:#fff;min-width:0}
+.fmt-row select{grid-column:2/4}
+.fmt-num{display:flex;align-items:center;gap:6px}
+.fmt-num input{width:84px}
+.fmt-num em{font-style:normal;color:#737a88;font-size:13px}
+.fmt-row small{color:#98a0ad;font-size:12px}
+.fmt-preview-label{font-size:13px;color:#737a88;margin-bottom:8px}
+.fmt-preview-label small{color:#98a0ad}
+.fmt-preview{border:1px solid #e4e7ed;border-radius:8px;background:#fff;padding:22px 26px;color:#404040;max-width:788px;overflow:hidden}
+.fmt-p-title{font-weight:700;line-height:1.4;color:#1e1e22}
+.fmt-p-h2{font-weight:600;line-height:1.5;color:#1e1e22}
+.fmt-actions{display:flex;align-items:center;gap:10px;justify-content:flex-end}
+.fmt-actions #fmtStatus{margin-right:auto;font-size:13px;color:#5d6574}
+.fmt-actions #fmtStatus.fmt-ok{color:#1f7a45}
+.fmt-actions #fmtStatus.fmt-warn{color:#a15c00}
+.fmt-actions #fmtStatus.fmt-error{color:#c42b2b}
+.fmt-history{margin:0;padding:0;list-style:none;display:grid;gap:4px;font-size:12px;color:#8c929d}
+@media(max-width:760px){.fmt-grid{grid-template-columns:1fr}.fmt-settings summary{grid-template-columns:1fr auto}.fmt-settings summary strong,.fmt-settings summary small{grid-column:1/-1}.fmt-row{grid-template-columns:110px 1fr auto}}
