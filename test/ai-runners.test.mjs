@@ -54,6 +54,21 @@ test('저장된 글은 썸네일 API 규칙과 같은 경로·형식의 16:9 SVG
  assert.ok(record.html.includes(`assets/thumbnails/${record.slug}.svg`),'본문 HTML 의 커버가 같은 파일을 가리킨다');
 });
 
+test('저장된 글은 상세용 16:9 와 별도로 목록용 1:1 SVG(-square)를 함께 가지고, 목록은 1:1 쪽을 고른다',async()=>{
+ store.clear();await runAll(await make());
+ const [record]=records();
+ const square=record.assets.find(a=>a.path===`assets/thumbnails/${record.slug}-square.svg`);
+ assert.ok(square,'목록용 1:1 썸네일');assert.equal(square.mime,'image/svg+xml');
+ const svg=Buffer.from(square.base64,'base64').toString('utf8');
+ assert.match(svg,/^<svg[^>]*width="720"[^>]*height="720"/);
+ assert.ok(Buffer.byteLength(svg)<500_000);
+ assert.ok(!record.html.includes('-square'),'본문(상세)에는 16:9 만 쓴다');
+ const {summary}=await import('../lib/core.mjs');
+ const row=summary(record);
+ assert.equal(row.thumbnailPath,`assets/thumbnails/${record.slug}.svg`,'상세용은 16:9');
+ assert.equal(row.thumbnailSquarePath,`assets/thumbnails/${record.slug}-square.svg`,'목록용은 1:1');
+});
+
 test('본문 HTML: 면책 작성일이 오늘이고, 확인 필요 항목이 검토 메모에 남는다',async()=>{
  store.clear();await runAll(await make());
  const [record]=records();

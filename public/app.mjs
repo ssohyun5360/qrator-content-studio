@@ -1,4 +1,5 @@
-import {CATEGORIES,STATUS,REVIEW_STATUS,normalizeStatus,statusLabel,esc,slugify,metadataFromHTML,suggestTags,readArchive,previewHTML,editedHTML,exportFolder,mime} from '/client-helpers.mjs';
+import {CATEGORIES,STATUS,REVIEW_STATUS,normalizeStatus,statusLabel,esc,slugify,metadataFromHTML,suggestTags,readArchive,previewHTML,editedHTML,exportFolder,mime,missingImageRefs,attachCoverToHTML} from '/client-helpers.mjs';
+import {pickThumbnails,describeRatio,thumbnailPaths} from '/thumb-helpers.mjs';
 const $=id=>document.getElementById(id);
 const state={items:[],filtered:[],selected:new Set(),page:1,user:{name:'공용 관리자'},current:null,mode:'visual',dirty:false,editorReady:false};
 const AUTOMATION_STATUS={manual:'직접 작성',queued:'생성 대기',generating:'생성 중',review_required:'검토 필요',approval_pending:'최종 승인 대기',complete:'완료',failed:'실패'};
@@ -36,12 +37,18 @@ function applyFilters(){
  state.filtered=state.items.filter(x=>(!query||String(x[field]||'').toLowerCase().includes(query))&&(!category||x.category===category)&&(!status||x.status===status)&&(!review||(x.reviewStatus||'pending')===review)&&(!tag||(x.topicTags||x.tags||[]).includes(tag))&&(!from||kstDate(x[dateField])>=from)&&(!to||kstDate(x[dateField])<=to));
  const sort=$('sort').value;state.filtered.sort((a,b)=>sort==='title'?a.title.localeCompare(b.title,'ko'):b[sort].localeCompare(a[sort]));state.page=1;renderList();
 }
+// 목록은 항상 1:1 타일. 목록용 1:1 이미지(-square)가 있으면 그것을, 없으면 대표 이미지를 가운데 기준으로 정사각형에 맞춰 보여 준다.
+function listThumbnail(r){
+ const path=r.thumbnailSquarePath||r.thumbnailPath;
+ if(!path)return '<span class="thumb">'+esc(r.category)+'<br>등기 가이드</span>';
+ return '<span class="thumb-frame"><img class="thumb-image" loading="lazy" src="/api/studio?op=thumbnail&slug='+encodeURIComponent(r.slug)+'&path='+encodeURIComponent(path)+'" alt="'+esc(r.title)+' 썸네일"></span>';
+}
 function renderList(){
  const count=state.filtered.length,size=Number($('pageSize').value),pages=Math.max(1,Math.ceil(count/size));state.page=Math.min(state.page,pages);
  const visible=state.filtered.slice((state.page-1)*size,state.page*size);
  const scheduled=state.items.filter(x=>x.status==='scheduled').length,completed=state.items.filter(x=>x.status==='completed').length,published=state.items.filter(x=>x.status==='published').length;
  $('totalCount').textContent='총 '+count+'건  |  게시 예정 '+scheduled+' · 작성 완료 '+completed+' · 게시 완료 '+published;
- $('rows').innerHTML=visible.length?visible.map((r,i)=>'<tr><td><input type="checkbox" class="row-check" data-slug="'+esc(r.slug)+'" aria-label="'+esc(r.title)+' 선택" '+(state.selected.has(r.slug)?'checked':'')+'></td><td>'+(count-(state.page-1)*size-i)+'</td><td>'+(r.thumbnailPath?'<img class="thumb-image" loading="lazy" src="/api/studio?op=thumbnail&slug='+encodeURIComponent(r.slug)+'&path='+encodeURIComponent(r.thumbnailPath)+'" alt="'+esc(r.title)+' 대표 이미지">':'<span class="thumb">'+esc(r.category)+'<br>등기 가이드</span>')+'</td><td>'+esc(r.category.replace(' 변경','').replace(' 이전',''))+'</td><td><button class="article-title" data-open="'+esc(r.slug)+'">'+esc(r.title)+'</button><div class="small muted">'+esc(r.slug)+'</div></td><td>'+r.tags.slice(0,3).map(t=>'<span class="tag">'+esc(t)+'</span>').join('')+'</td><td>'+inlineStatusSelect('reviewStatus',r.slug,r.reviewStatus||'pending',REVIEW_STATUS)+'</td><td>'+inlineStatusSelect('status',r.slug,r.status,STATUS)+'</td><td>'+dateTime(r.scheduledAt)+'</td><td>'+dateTime(r.updatedAt)+'</td><td>'+esc(r.updatedBy||r.author)+'</td><td><button class="danger table-trash-button" data-trash="'+esc(r.slug)+'" data-revision="'+esc(r.revision)+'">휴지통</button></td></tr>').join(''):'<tr><td colspan="12" class="empty">조건에 맞는 콘텐츠가 없습니다.</td></tr>';
+ $('rows').innerHTML=visible.length?visible.map((r,i)=>'<tr><td><input type="checkbox" class="row-check" data-slug="'+esc(r.slug)+'" aria-label="'+esc(r.title)+' 선택" '+(state.selected.has(r.slug)?'checked':'')+'></td><td>'+(count-(state.page-1)*size-i)+'</td><td>'+listThumbnail(r)+'</td><td>'+esc(r.category.replace(' 변경','').replace(' 이전',''))+'</td><td><button class="article-title" data-open="'+esc(r.slug)+'">'+esc(r.title)+'</button><div class="small muted">'+esc(r.slug)+'</div></td><td>'+r.tags.slice(0,3).map(t=>'<span class="tag">'+esc(t)+'</span>').join('')+'</td><td>'+inlineStatusSelect('reviewStatus',r.slug,r.reviewStatus||'pending',REVIEW_STATUS)+'</td><td>'+inlineStatusSelect('status',r.slug,r.status,STATUS)+'</td><td>'+dateTime(r.scheduledAt)+'</td><td>'+dateTime(r.updatedAt)+'</td><td>'+esc(r.updatedBy||r.author)+'</td><td><button class="danger table-trash-button" data-trash="'+esc(r.slug)+'" data-revision="'+esc(r.revision)+'">휴지통</button></td></tr>').join(''):'<tr><td colspan="12" class="empty">조건에 맞는 콘텐츠가 없습니다.</td></tr>';
  $('selectedCount').textContent=state.selected.size+'건 선택';
  $('selectedActions').hidden=state.selected.size===0;
  if($('deleteSelected'))$('deleteSelected').disabled=deletingSelected||state.selected.size===0;
@@ -246,7 +253,43 @@ function loadVisual(){
  };
  $('visualEditor').srcdoc=previewHTML(state.current);
 }
-function renderAssets(){$('assetList').innerHTML=state.current.assets.map((a,i)=>'<span class="asset-chip">'+esc(a.path)+'<button type="button" data-asset-remove="'+i+'" aria-label="'+esc(a.path)+' 삭제">×</button></span>').join('');}
+// ── 썸네일: 상세 화면은 16:9 대표 이미지, 글 목록은 1:1 썸네일(파일명 끝이 -square) ──
+const THUMB_RULES={cover:{kind:'wide',label:'16:9',where:'상세 화면'},square:{kind:'square',label:'1:1',where:'목록 화면'}};
+const THUMB_EXT={'image/png':'png','image/jpeg':'jpg','image/webp':'webp','image/svg+xml':'svg'};
+function renderThumbnailPanel(){
+ const panel=$('thumbPanel');if(!panel||!state.current)return;
+ const picked=pickThumbnails(state.current.assets||[]);
+ for(const variant of ['cover','square']){
+  const rule=THUMB_RULES[variant],slot=panel.querySelector('[data-thumb-slot="'+variant+'"]'),img=slot.querySelector('img'),empty=slot.querySelector('.thumb-empty'),info=slot.querySelector('[data-thumb-info]'),copy=slot.querySelector('[data-thumb-copy]');
+  const asset=variant==='square'?picked.square:picked.cover,link=state.current.imageLinks?.[variant];
+  copy.disabled=!link;copy.title=link?'로그인 없이 열리는 이미지 주소를 복사합니다.':'사이트에 저장하면 주소가 생깁니다.';
+  info.className='hint';
+  if(!asset){img.hidden=true;img.removeAttribute('src');empty.hidden=false;info.textContent=variant==='square'?(picked.cover?'없음 · 목록에서는 대표 이미지를 가운데 기준으로 잘라 보여 줘요.':'없음'):'대표 이미지가 없어요.';continue;}
+  empty.hidden=true;img.hidden=false;img.alt=rule.where+' 이미지';
+  img.onload=()=>{const ratio=describeRatio(img.naturalWidth,img.naturalHeight),ok=ratio.kind===rule.kind;info.className='hint '+(ok?'ok':'warn');info.textContent=img.naturalWidth+'×'+img.naturalHeight+' · '+ratio.label+(ok?' ✓':' · '+rule.where+'은 '+rule.label+' 권장');};
+  img.src='data:'+asset.mime+';base64,'+asset.base64;
+ }
+}
+function measureImage(file){return new Promise(resolve=>{const url=URL.createObjectURL(file),img=new Image();img.onload=()=>{resolve({width:img.naturalWidth,height:img.naturalHeight});URL.revokeObjectURL(url);};img.onerror=()=>{resolve(null);URL.revokeObjectURL(url);};img.src=url;});}
+async function replaceThumbnail(variant,file){
+ const ext=THUMB_EXT[file.type];
+ if(!ext)throw new Error('PNG, JPG, WEBP, SVG 이미지만 올릴 수 있어요.');
+ if(file.size>(ext==='svg'?500000:2000000))throw new Error(ext==='svg'?'SVG 썸네일은 500KB 이내로 올려 주세요.':'이미지는 2MB 이내로 올려 주세요.');
+ const rule=THUMB_RULES[variant],size=await measureImage(file);
+ if(size){const ratio=describeRatio(size.width,size.height);if(ratio.kind!==rule.kind&&!confirm('선택한 이미지는 '+ratio.label+' 비율이에요. '+rule.where+'에는 '+rule.label+' 이미지를 권장해요. 그래도 사용할까요?'))return;}
+ const base64=await new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(String(reader.result).split(',')[1]);reader.onerror=reject;reader.readAsDataURL(file);});
+ state.current=recordFromForm();
+ const picked=pickThumbnails(state.current.assets),oldCover=picked.cover&&picked.cover!==picked.square?picked.cover:null,oldAsset=variant==='square'?picked.square:oldCover;
+ const stem=asset=>asset.path.replace(/\.[a-z0-9]+$/i,''),defaults=thumbnailPaths(state.current.slug||'cover',ext);
+ const path=variant==='cover'?(oldCover?stem(oldCover)+'.'+ext:defaults.cover):(picked.square?stem(picked.square)+'.'+ext:(oldCover?stem(oldCover)+'-square.'+ext:defaults.square));
+ state.current.assets=[{path,mime:file.type,base64},...state.current.assets.filter(a=>a!==oldAsset&&a.path!==path)];
+ let message=rule.where+' 이미지를 바꿨어요. 저장하면 반영돼요.';
+ if(variant==='cover'){const {html,changed}=attachCoverToHTML(state.current,path,oldCover?.path||null);state.current.html=html;if(!changed)message='이미지는 바꿨지만 본문에 대표 이미지 자리가 없어 넣지 못했어요. 편집 화면의 이미지 버튼으로 본문에 넣어 주세요.';}
+ renderAssets();
+ if(state.mode==='code')$('htmlEditor').value=state.current.html;else loadVisual();
+ markDirty();toast(message);
+}
+function renderAssets(){renderThumbnailPanel();$('assetList').innerHTML=state.current.assets.map((a,i)=>'<span class="asset-chip">'+esc(a.path)+'<button type="button" data-asset-remove="'+i+'" aria-label="'+esc(a.path)+' 삭제">×</button></span>').join('');}
 function fillEditor(record){
  record={...record,status:normalizeStatus(record.status)};state.current=clone(record);state.dirty=false;state.mode='visual';
  $('listView').hidden=true;$('editorView').hidden=false;$('editorTitle').textContent=record.revision?'등기 가이드 수정':'등기 가이드 작성';
@@ -285,9 +328,16 @@ async function setMode(mode){
 async function download(records){
  if(!records.length){toast('다운로드할 콘텐츠를 선택해 주세요.');return;}
  toast(records.length+'편의 전달 폴더를 준비하고 있습니다.');
- const data=await exportFolder(records,window.JSZip);const url=URL.createObjectURL(new Blob([data],{type:'application/zip'}));const link=document.createElement('a');
- link.href=url;link.download='Qrator_guides_'+kstDate(new Date()).replaceAll('-','')+'.zip';link.click();setTimeout(()=>URL.revokeObjectURL(url),20000);toast('전달 폴더를 다운로드했습니다.');
+ const imageMode=state.exportApiImages?'api':'files';
+ const data=await exportFolder(records,window.JSZip,{imageMode});const url=URL.createObjectURL(new Blob([data],{type:'application/zip'}));const link=document.createElement('a');
+ link.href=url;link.download='Qrator_guides_'+kstDate(new Date()).replaceAll('-','')+'.zip';link.click();setTimeout(()=>URL.revokeObjectURL(url),20000);
+ const withoutLinks=imageMode==='api'?records.filter(r=>!r.imageLinks?.cover&&!r.imageLinks?.square).length:0;
+ toast('전달 폴더를 다운로드했습니다.'+(imageMode==='api'?(withoutLinks?' 이미지 주소가 없는 '+withoutLinks+'편은 이미지 파일 경로로 두었습니다(사이트에 저장하면 주소가 생깁니다).':' HTML의 썸네일은 API 주소로 연결했습니다.'):''));
 }
+// ZIP 안 HTML 의 썸네일을 API 주소로 연결할지: 브라우저에 기억해 두고 목록·편집 화면의 체크박스가 같은 값을 쓴다.
+const EXPORT_API_KEY='qrator-content-studio:export-api-images';
+try{state.exportApiImages=localStorage.getItem(EXPORT_API_KEY)==='1';}catch{state.exportApiImages=false;}
+document.querySelectorAll('[data-export-api-images]').forEach(box=>{box.checked=state.exportApiImages;box.onchange=()=>{state.exportApiImages=box.checked;document.querySelectorAll('[data-export-api-images]').forEach(other=>other.checked=box.checked);try{localStorage.setItem(EXPORT_API_KEY,box.checked?'1':'0');}catch{}};});
 async function fetchSelected(slugs){return Promise.all(slugs.map(async slug=>{const r=await api('get',null,{slug});return {...r,status:normalizeStatus(r.status)};}));}
 async function batchStatus(status){
  const slugs=[...state.selected];if(!slugs.length){toast('콘텐츠를 선택해 주세요.');return;}
@@ -298,7 +348,7 @@ async function batchStatus(status){
  if(failures.length)alert(failures.join('\n'));
 }
 async function importFiles(files){
- let imported=0,skipped=0,failed=[];
+ let imported=0,skipped=0,failed=[];const warnings=[];
  for(const file of files){
   let candidates;
   try{if(/\.zip$/i.test(file.name))candidates=await readArchive(file,window.JSZip);else if(/\.html?$/i.test(file.name)){if(file.size>2000000)throw new Error('HTML은 2MB 이내로 올려 주세요.');const html=await file.text();const meta=metadataFromHTML(html,file.name);candidates=[{...meta,tags:suggestTags(html,meta.title,meta.category),html,entryPath:file.name,assets:[]}];}else throw new Error('HTML 또는 ZIP 파일을 선택해 주세요.');}
@@ -310,11 +360,17 @@ async function importFiles(files){
      base=await api('get',null,{slug:candidate.slug});expectedRevision=base.revision;}
     const record={...base,...candidate,author:state.user.name,status:'draft',reviewStatus:'pending',tags:[...new Set([...(base.tags||[]),...(candidate.tags||[])])],note:base.note||'',verification:base.verification||''};
     const result=await api('save',{record,expectedRevision});state.items=state.items.filter(x=>x.slug!==result.slug);state.items.push(result);imported++;
+    // HTML만 가져오면 본문이 가리키는 이미지 파일이 없어 썸네일이 비어 보인다. 조용히 넘어가지 않고 어떤 파일이 빠졌는지 알려 준다.
+    const missing=missingImageRefs(record.html,record.entryPath,record.assets||[]);
+    if(missing.length)warnings.push('· '+record.title+': '+missing.slice(0,3).map(x=>x.path).join(', ')+(missing.length>3?' 외 '+(missing.length-3)+'개':''));
    }catch(e){failed.push(candidate.entryPath+': '+e.message);}
   }
  }
  await loadItems();toast(imported+'편 가져오기 완료'+(skipped?' · '+skipped+'편 건너뜀':'')+(failed.length?' · '+failed.length+'편 실패':''));
- if(failed.length)alert(failed.join('\n'));
+ const notes=[];
+ if(failed.length)notes.push(failed.join('\n'));
+ if(warnings.length)notes.push('이미지 파일이 함께 들어오지 않은 글이 있어요. 썸네일이나 본문 이미지가 비어 보일 수 있어요.\n'+warnings.join('\n')+'\n\n해결: 글을 열어 "썸네일"에서 이미지를 올리거나, 이미지 폴더가 든 ZIP으로 다시 가져오세요.');
+ if(notes.length)alert(notes.join('\n\n'));
 }
 async function showHistory(){
  const history=[...(state.current.history||[])].reverse();
@@ -371,6 +427,14 @@ $('assetInput').onchange=guard(async e=>{
   if(i>=0){if(!confirm(path+' 파일을 교체하시겠습니까?'))continue;state.current.assets[i]=asset;}else state.current.assets.push(asset);
  }e.target.value='';renderAssets();if(state.mode==='visual')loadVisual();markDirty();
 });
+let thumbVariant='cover';
+$('thumbPanel').onclick=guard(async e=>{
+ const pick=e.target.closest('[data-thumb-pick]');if(pick){thumbVariant=pick.dataset.thumbPick;$('thumbInput').click();return;}
+ const copy=e.target.closest('[data-thumb-copy]');
+ if(copy){const url=state.current?.imageLinks?.[copy.dataset.thumbCopy];if(!url)return;await navigator.clipboard.writeText(url);toast('이미지 주소를 복사했어요. 로그인 없이 열리는 주소예요.');}
+});
+$('thumbInput').onchange=guard(async e=>{const file=e.target.files[0];e.target.value='';if(file)await replaceThumbnail(thumbVariant,file);});
+document.addEventListener('qrator:open-record',guard(e=>openRecord(e.detail)));
 $('assetList').onclick=e=>{const b=e.target.closest('[data-asset-remove]');if(b){state.current.assets.splice(Number(b.dataset.assetRemove),1);renderAssets();markDirty();}};
 $('previewButton').onclick=guard(()=>{$('previewFrame').srcdoc=previewHTML(recordFromForm());$('previewFrame').style.maxWidth='100%';$('previewDialog').showModal();});
 $('closePreview').onclick=()=>$('previewDialog').close();$('desktopPreview').onclick=()=>$('previewFrame').style.maxWidth='100%';$('mobilePreview').onclick=()=>$('previewFrame').style.maxWidth='390px';

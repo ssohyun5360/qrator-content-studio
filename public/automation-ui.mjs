@@ -87,17 +87,33 @@ main.insertAdjacentHTML('beforeend',`
 <dialog id="aiProgressDialog" class="ops-dialog ai-generation-dialog"><div class="auto-review-head"><div><h2 id="aiProgTitle">AI 콘텐츠 생성 중</h2><p id="aiProgSub">이 창을 닫아도 생성은 계속됩니다.</p></div><button type="button" id="aiProgClose" aria-label="닫기">×</button></div><div class="ai-generation-body"><div id="aiBatchProgress" class="ai-batch-progress" hidden></div><div class="ai-progress-meter"><span id="aiProgressBar"></span></div><ol id="aiProgSteps" class="ai-steps"></ol><p id="aiProgMsg" class="ai-prog-msg"></p></div><div class="ops-dialog-foot"><span>진행 상황은 대시보드에도 동시에 반영됩니다.</span><button type="button" id="aiProgDashboard">대시보드에서 보기</button><button type="button" id="aiProgRetry" hidden>다시 시도</button><button type="button" id="aiProgOpen" class="primary" hidden>목록에서 확인</button></div></dialog>
 `);
 
-const views={dashboard:$('automationDashboard'),settings:$('automationSettings')};const navs={dashboard:$('navDashboard'),settings:$('navSettings'),contents:$('navContents'),trash:$('trashButton')};
+main.insertAdjacentHTML('beforeend',`
+<section id="naverPostsView" class="automation-view" hidden>
+  <div class="auto-page-head"><div><div class="auto-title-row"><h1>네이버 게시 현황</h1><span class="auto-version" id="naverBlogBadge">네이버 블로그</span></div><p>네이버 블로그에 실제로 올라가 있는 글을 불러와 스튜디오 글과 맞춰 봅니다.</p></div><time id="naverFetchedAt"></time></div>
+  <div class="ops-summary naver-summary" aria-label="네이버 게시 요약">
+    <div class="ops-summary-card blue"><span>네이버 공개 글</span><strong id="naverTotal">-</strong><small id="naverTotalCopy">불러오는 중</small></div>
+    <div class="ops-summary-card green"><span>스튜디오와 연결됨</span><strong id="naverLinked">-</strong><small>같은 글로 확인된 수</small></div>
+    <div class="ops-summary-card amber"><span>연결 안 된 글</span><strong id="naverUnlinked">-</strong><small>스튜디오에서 찾지 못한 글</small></div>
+    <div class="ops-summary-card"><span>가장 최근 발행</span><strong id="naverLatest" class="naver-latest">-</strong><small id="naverLatestCopy">&nbsp;</small></div>
+  </div>
+  <section class="auto-panel">
+    <div class="auto-section-head"><div><h2>네이버에 올라간 글</h2><p>공개된 최근 글만 보여요. 비공개·임시저장 글은 네이버가 목록에 내주지 않아 나타나지 않습니다.</p></div><label class="export-option"><input type="checkbox" id="naverUnlinkedOnly"> 연결 안 된 글만 보기</label><a id="naverBlogLink" class="naver-blog-link" href="https://blog.naver.com/" target="_blank" rel="noopener noreferrer">네이버 블로그 열기</a><button type="button" id="naverRefresh">새로고침</button></div>
+    <div class="table-scroll"><table class="naver-table"><thead><tr><th>번호</th><th>썸네일</th><th class="title-col">제목</th><th>분류</th><th>발행 일시</th><th>스튜디오 연결</th></tr></thead><tbody id="naverRows"></tbody></table></div>
+  </section>
+  <section class="auto-panel" id="naverStudioOnlyPanel" hidden><details><summary>스튜디오에는 있지만 네이버에서 찾지 못한 글 <b id="naverStudioOnlyCount"></b></summary><p class="naver-help">게시 예정·작성 완료·게시 완료·전달 완료 상태인데 네이버 글과 연결되지 않은 글이에요. 네이버에 아직 올리지 않았거나, 제목이 달라 연결하지 못했을 수 있어요. 글 편집 화면의 "참고 자료"에 네이버 글 주소를 넣으면 연결됩니다.</p><ul id="naverStudioOnlyList" class="naver-only-list"></ul></details></section>
+</section>`);
+
+const views={dashboard:$('automationDashboard'),settings:$('automationSettings'),naver:$('naverPostsView')};const navs={dashboard:$('navDashboard'),settings:$('navSettings'),contents:$('navContents'),trash:$('trashButton'),naver:$('navNaver')};
 const projectSelect=$('projectSelect');const projectSwitcher=projectSelect.closest('.project-switcher');const projectNavigation=$('projectNavigation');const qratorContentNavigation=$('qratorContentNavigation');const homeqContentNavigation=$('homeqContentNavigation');const workspaceHome=$('workspaceHomeView');const homeqWorkspace=$('homeqWorkspace');const contentTypeWorkspace=$('contentTypeWorkspace');const qratorContentsAction=navs.contents.onclick;const qratorTrashAction=navs.trash.onclick;let activeProject=localStorage.getItem('content-studio:project')==='homeq'?'homeq':'qrator';let activeSection='contents';let activeContentType='guide';
 function canLeaveEditor(){if($('editorView').hidden)return true;const label=$('saveState').textContent;return !/변경|임시 저장/.test(label)||confirm('저장하지 않은 변경사항이 있습니다. 다른 화면으로 이동하시겠습니까?');}
 function activateNav(name){document.querySelectorAll('.nav-item').forEach(x=>x.classList.remove('active'));navs[name]?.classList.add('active');}
 function activateContentType(type){document.querySelectorAll('[data-content-type]').forEach(x=>x.classList.toggle('active',x.dataset.contentType===type));}
 function activateHomeqSection(section){document.querySelectorAll('[data-homeq-section]').forEach(x=>x.classList.toggle('active',x.dataset.homeqSection===section));}
 function hideProjectViews(){[$('listView'),$('editorView'),workspaceHome,homeqWorkspace,contentTypeWorkspace,...Object.values(views)].forEach(v=>v.hidden=true);}
-function showProjectNavigation(){projectSwitcher.hidden=false;projectNavigation.hidden=false;projectSelect.value=activeProject;qratorContentNavigation.hidden=activeProject!=='qrator';homeqContentNavigation.hidden=activeProject!=='homeq';$('navWorkspaceHome').classList.remove('active');}
+function showProjectNavigation(){navs.naver.hidden=activeProject!=='qrator';projectSwitcher.hidden=false;projectNavigation.hidden=false;projectSelect.value=activeProject;qratorContentNavigation.hidden=activeProject!=='qrator';homeqContentNavigation.hidden=activeProject!=='homeq';$('navWorkspaceHome').classList.remove('active');}
 function updateQratorListHeading(type='all'){const labels={all:['QRATOR 전체 콘텐츠','등기가이드·실무워크북·인사이트 콘텐츠를 한곳에서 관리합니다.','전체 콘텐츠'],guide:['등기가이드','법인 변경등기 가이드의 작성과 게시 상태를 관리합니다.','등기가이드']};const copy=labels[type]||labels.guide;$('contentListTitle').textContent=copy[0];$('contentListDescription').textContent=copy[1];$('contentListTab').textContent=copy[2];}
 function showWorkspaceHome(skipGuard=false){if(!skipGuard&&!canLeaveEditor())return;hideProjectViews();workspaceHome.hidden=false;projectSwitcher.hidden=true;projectNavigation.hidden=true;$('navWorkspaceHome').classList.add('active');const count=document.querySelector('#totalCount')?.textContent.match(/총\s+(\d+)건/)?.[1];if(count)$('workspaceQratorCount').textContent=count+'건';window.scrollTo({top:0,behavior:'instant'});}
-function showAutomation(name,skipGuard=false){if(!skipGuard&&!canLeaveEditor())return;showProjectNavigation();activeSection=name;hideProjectViews();views[name].hidden=false;activateNav(name);if(name==='dashboard')refreshAiDashboard();window.scrollTo({top:0,behavior:'instant'});}
+function showAutomation(name,skipGuard=false){if(!skipGuard&&!canLeaveEditor())return;showProjectNavigation();activeSection=name;hideProjectViews();views[name].hidden=false;activateNav(name);if(name==='dashboard')refreshAiDashboard();if(name==='naver')loadNaverPosts();window.scrollTo({top:0,behavior:'instant'});}
 const qratorTypeCopy={workbook:['실무워크북','업무 단계별 체크리스트와 실무 자료를 관리하는 공간입니다.','실무워크북 작업 공간','담당 마케터의 워크북 템플릿과 콘텐츠 목록을 이곳에 연결합니다.'],insight:['인사이트','법인 운영과 변경등기 관련 인사이트 콘텐츠를 관리하는 공간입니다.','인사이트 작업 공간','인사이트 전용 작성 규칙과 게시 채널을 이곳에 연결합니다.']};
 function showQratorType(type,skipGuard=false){if(!skipGuard&&!canLeaveEditor())return;activeContentType=type;activeSection='contents';showProjectNavigation();hideProjectViews();activateNav('contents');activateContentType(type);if(type==='guide'){updateQratorListHeading('guide');$('listView').hidden=false;}else{const copy=qratorTypeCopy[type];$('contentTypePageTitle').textContent=copy[0];$('contentTypePageDescription').textContent=copy[1];$('contentTypePlaceholderTitle').textContent=copy[2];$('contentTypePlaceholderCopy').textContent=copy[3];contentTypeWorkspace.hidden=false;}window.scrollTo({top:0,behavior:'instant'});}
 const homeqCopy={weekly:['부동산 주간뉴스','매주 3개 부동산 이슈를 카드뉴스와 인스타 캡션으로 제작합니다.'],features:['홈큐 기능 연계 카드뉴스','HomeQ 기능과 연결되는 주 2회 마케팅 카드뉴스를 준비하는 공간입니다.','기능 연계 카드뉴스','주간뉴스 자동화가 안정화된 뒤 두 번째 콘텐츠 유형으로 연결합니다.'],dashboard:['HomeQ 콘텐츠 대시보드','카드뉴스와 블로그의 제작·검토·발행 현황을 확인하는 공간입니다.','HomeQ 대시보드','채널별 제작 현황과 오늘 처리할 작업을 이곳에 연결합니다.'],contents:['HomeQ 전체 콘텐츠','인스타 카드뉴스와 블로그 콘텐츠를 함께 관리하는 공간입니다.','전체 콘텐츠','HomeQ의 채널별 콘텐츠 목록을 이곳에 연결합니다.'],cards:['인스타 카드뉴스','카드뉴스 유형별 제작 흐름을 관리합니다.'],blog:['HomeQ 블로그','부동산 뉴스와 서비스 마케팅 원고를 관리합니다.','블로그 작업 공간','블로그 템플릿과 초안·검토·발행 상태를 이곳에 연결합니다.'],assets:['이미지·자료','카드뉴스와 블로그에서 사용하는 이미지와 출처를 관리합니다.','이미지·자료 보관함','생성 이미지·원본·출처 정보를 한곳에서 관리할 예정입니다.'],settings:['HomeQ 생성 설정','부동산 주간뉴스의 일정·템플릿·작성·이미지 규칙을 관리합니다.'],trash:['HomeQ 휴지통','삭제한 HomeQ 콘텐츠와 이미지 작업을 관리하는 공간입니다.','휴지통','HomeQ에서 삭제한 작업만 별도로 표시합니다.']};
@@ -220,3 +236,51 @@ const homeqSettingsForm=$('homeqSettingsForm');homeqSettingsForm.addEventListene
 $('homeqSettingsSave').onclick=async()=>{const button=$('homeqSettingsSave');const settings={weekday:$('homeqWeekday').value,time:$('homeqTime').value,topicCount:Number($('homeqTopicCount').value),writingRules:$('homeqWritingRules').value.trim()};if(settings.writingRules.length<20){toast('작성·이미지 규칙을 20자 이상 입력해 주세요.');$('homeqWritingRules').focus();return;}button.disabled=true;button.textContent='저장 중…';try{const data=await automationApi('saveHomeqSettings',{method:'POST',body:{settings,expectedRevision:homeqSettingsRevision}});homeqSettingsRevision=data.settings.revision;$('homeqRuleVersion').textContent='주간뉴스 지침 · '+data.settings.ruleVersion;toast('HomeQ 주간뉴스 설정을 '+data.settings.ruleVersion+'로 저장했습니다.');}catch(e){button.disabled=false;toast(e.message);}finally{button.textContent='변경 사항 저장';}};
 document.querySelectorAll('.auto-day').forEach(button=>button.addEventListener('click',()=>{const selected=document.querySelectorAll('.auto-day.is-selected');if(button.classList.contains('is-selected')&&selected.length===1){toast('생성 요일은 최소 하루 이상 선택해야 합니다.');return;}button.classList.toggle('is-selected');button.setAttribute('aria-pressed',String(button.classList.contains('is-selected')));$('automationSaveButton').disabled=false;}));
 const settingsForm=$('automationSettingsForm');settingsForm.addEventListener('input',()=>{$('automationSaveButton').disabled=false;});$('automationSaveButton').onclick=async()=>{const button=$('automationSaveButton');const writingRules=$('automationWritingRules').value.trim();if(writingRules.length<10){toast('작성 규칙을 10자 이상 입력해 주세요.');$('automationWritingRules').focus();return;}button.disabled=true;button.textContent='저장 중…';try{const data=await automationApi('saveSettings',{method:'POST',body:{settings:{writingRules},expectedRevision:settingsRevision}});settingsRevision=data.settings.revision;$('automationWritingRules').value=data.settings.writingRules;$('writingRuleVersion').textContent='작성 지침 · '+data.settings.ruleVersion;localStorage.setItem('qrator-automation-settings-v2',JSON.stringify({savedAt:data.settings.updatedAt,enabled:true}));toast('작성 규칙을 '+data.settings.ruleVersion+'로 저장했습니다.');}catch(e){button.disabled=false;toast(e.message);}finally{button.textContent='변경 사항 저장';}};$('automationHistoryButton').onclick=()=>toast(messages.history);
+
+// ── 네이버 게시 현황: 네이버 블로그 공개 RSS 의 글 목록을 스튜디오 글과 맞춰 본다 ──
+const naverEscape=value=>String(value??'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
+const naverKst=value=>value?new Intl.DateTimeFormat('sv-SE',{timeZone:'Asia/Seoul',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hour12:false}).format(new Date(value)):'-';
+const NAVER_STATUS={draft:'작성 중',scheduled:'게시 예정',completed:'작성 완료',published:'게시 완료',delivered:'전달 완료',private:'비공개'};
+const NAVER_MATCH={url:'출처 주소가 같아요',note:'메모에 적힌 네이버 제목이 같아요',title:'제목이 같아요',similar:'제목이 비슷해요'};
+let naverData=null;
+navs.naver.onclick=()=>showAutomation('naver');
+async function loadNaverPosts(force=false){
+ const body=$('naverRows'),button=$('naverRefresh');
+ body.innerHTML='<tr><td colspan="6" class="empty">네이버에서 글 목록을 불러오는 중입니다.</td></tr>';
+ button.disabled=true;
+ try{
+  const response=await fetch('/api/naver-posts'+(force?'?refresh=1':''),{credentials:'same-origin'});
+  const data=await response.json().catch(()=>({}));
+  if(!response.ok)throw new Error(data.error||'네이버 글 목록을 불러오지 못했습니다.');
+  naverData=data;renderNaverPosts();
+ }catch(error){
+  naverData=null;
+  body.innerHTML='<tr><td colspan="6" class="empty">'+naverEscape(error.message)+'<br><small>잠시 후 새로고침을 눌러 다시 시도해 주세요.</small></td></tr>';
+  $('naverTotal').textContent='-';$('naverTotalCopy').textContent='불러오지 못했어요';$('naverLinked').textContent='-';$('naverUnlinked').textContent='-';$('naverLatest').textContent='-';$('naverFetchedAt').textContent='';$('naverStudioOnlyPanel').hidden=true;
+ }finally{button.disabled=false;}
+}
+function renderNaverPosts(){
+ const data=naverData;if(!data)return;
+ const {summary,posts,blog}=data,only=$('naverUnlinkedOnly').checked,visible=only?posts.filter(post=>!post.studio):posts;
+ $('naverBlogBadge').textContent=blog.id;$('naverBlogLink').href=blog.url;
+ $('naverFetchedAt').textContent=naverKst(data.fetchedAt)+' 확인';
+ $('naverTotal').textContent=summary.total;$('naverTotalCopy').textContent=summary.total?'최근 공개 글 기준':'공개된 글이 없어요';
+ $('naverLinked').textContent=summary.studioCompared?summary.linked:'-';$('naverUnlinked').textContent=summary.studioCompared?summary.unlinked:'-';
+ $('naverLatest').textContent=summary.latestAt?naverKst(summary.latestAt).slice(0,10):'-';$('naverLatestCopy').textContent=summary.latestAt?naverKst(summary.latestAt).slice(11)+' 발행':' ';
+ $('naverRows').innerHTML=visible.length?visible.map((post,index)=>{
+  const thumb=post.thumbnail?'<span class="thumb-frame naver-thumb"><img class="thumb-image" loading="lazy" referrerpolicy="no-referrer" src="'+naverEscape(post.thumbnail)+'" alt=""></span>':'<span class="thumb naver-thumb">-</span>';
+  const studio=post.studio?'<div class="naver-studio"><button type="button" class="naver-open" data-open-studio="'+naverEscape(post.studio.slug)+'">'+naverEscape(post.studio.title)+'</button><span class="ops-chip '+(post.studio.status==='published'?'green':'blue')+'">'+naverEscape(NAVER_STATUS[post.studio.status]||post.studio.status)+'</span><small>'+naverEscape(NAVER_MATCH[post.studio.by]||'')+'</small></div>':'<span class="ops-chip amber">연결된 글 없음</span>';
+  const tags=(post.tags||[]).slice(0,3).map(tag=>'<span class="tag">'+naverEscape(tag)+'</span>').join('');
+  return '<tr><td>'+(visible.length-index)+'</td><td>'+thumb+'</td><td class="naver-title"><a href="'+naverEscape(post.url)+'" target="_blank" rel="noopener noreferrer">'+naverEscape(post.title)+'</a><div>'+tags+'</div></td><td>'+naverEscape(post.category||'-')+'</td><td>'+naverKst(post.publishedAt)+'</td><td class="naver-link-cell">'+studio+'</td></tr>';
+ }).join(''):'<tr><td colspan="6" class="empty">'+(only?'연결되지 않은 글이 없어요. 모두 스튜디오 글과 연결되어 있습니다.':'네이버에 공개된 글이 없습니다.')+'</td></tr>';
+ const studioOnly=data.studioOnly||[];
+ $('naverStudioOnlyPanel').hidden=!studioOnly.length;$('naverStudioOnlyCount').textContent='('+studioOnly.length+'건)';
+ $('naverStudioOnlyList').innerHTML=studioOnly.map(item=>'<li><button type="button" class="naver-open" data-open-studio="'+naverEscape(item.slug)+'">'+naverEscape(item.title)+'</button><small>'+naverEscape([item.category,NAVER_STATUS[item.status]||item.status].filter(Boolean).join(' · '))+'</small></li>').join('');
+}
+$('naverRefresh').onclick=()=>loadNaverPosts(true);
+$('naverUnlinkedOnly').onchange=renderNaverPosts;
+$('naverPostsView').addEventListener('click',event=>{
+ const open=event.target.closest('[data-open-studio]');if(!open)return;
+ hideProjectViews();showProjectNavigation();activeSection='contents';activateNav('contents');
+ document.dispatchEvent(new CustomEvent('qrator:open-record',{detail:open.dataset.openStudio}));
+});

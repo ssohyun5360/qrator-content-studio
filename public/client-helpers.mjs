@@ -1,3 +1,4 @@
+import {pickThumbnails,isSquareAsset} from './thumb-helpers.mjs';
 export const CATEGORIES=['상호 변경','본점 이전','목적 변경','임원 변경','지점 변경'];
 export const STATUS={scheduled:'게시 예정',draft:'작성 중',completed:'작성 완료',published:'게시 완료',delivered:'전달 완료',private:'비공개'};
 export function normalizeStatus(status){return status==='needs_changes'||status==='ready'?'completed':status;}
@@ -44,6 +45,16 @@ export function suggestTags(html,title='',category=''){
  for(const [tag,terms] of extra)if(terms.some(term=>text.includes(term))&&!tags.includes(tag))tags.push(tag);
  return tags.slice(0,8);
 }
+// 본문이 가리키는 썸네일 옆에 -square(목록용 1:1) 짝이 있으면 함께 가져온다. 본문이 직접 부르지 않아도 같은 글의 썸네일이다.
+export function withSquareSiblings(included,all){
+ const result=new Map(included.map(a=>[a.path,a]));
+ const strip=path=>path.replace(/\.[a-z0-9]+$/i,'');
+ for(const asset of included){
+  const stem=strip(asset.path);
+  for(const candidate of all)if(!result.has(candidate.path)&&isSquareAsset(candidate)&&strip(candidate.path).replace(/[-_](?:square|1x1)$/i,'')===stem)result.set(candidate.path,candidate);
+ }
+ return [...result.values()];
+}
 export async function readArchive(file,Zip){
  if(file.size>15*1024*1024)throw new Error('ZIP은 15MB 이내로 올려 주세요.');
  const zip=await Zip.loadAsync(await file.arrayBuffer());const entries=Object.values(zip.files).filter(x=>!x.dir);
@@ -79,7 +90,7 @@ export async function readArchive(file,Zip){
    if(node.hasAttribute('style'))for(const match of node.getAttribute('style').matchAll(/url\(\s*(['"]?)(.*?)\1\s*\)/gi))addReference(item.entryPath,match[2]);
   }
   for(const style of doc.querySelectorAll('style'))for(const match of style.textContent.matchAll(/url\(\s*(['"]?)(.*?)\1\s*\)/gi))addReference(item.entryPath,match[2]);
-  return [...included.values()];
+  return withSquareSiblings([...included.values()],[...assetsByPath.values()]);
  }
  return htmlFiles.map(x=>{const meta=metadataFromHTML(x.html,x.entryPath);return {...meta,...x,tags:suggestTags(x.html,meta.title,meta.category),assets:assetsForHTML(x)};});
 }
@@ -115,12 +126,60 @@ export function editedHTML(doc,metadata){
  const description=clone.querySelector('meta[name="description"]');if(description)description.content=metadata.seoDescription||metadata.summary;
  return '<!doctype html>\n'+clone.outerHTML;
 }
-export async function exportFolder(records,Zip){
+// 본문 <img> 가 가리키는 대표·목록 썸네일 파일 경로를 로그인 없이 열리는 API 주소(record.imageLinks)로 바꾼다.
+// 이미지 파일을 따로 챙기지 않아도 HTML 만으로 썸네일이 보이게 하려는 것. 주소가 없는 이미지는 그대로 둔다.
+export function apiImageHTML(record){
+ const links=record.imageLinks||{};const {cover,square}=pickThumbnails(record.assets||[]);
+ const targets=new Map();
+ if(cover&&links.cover)targets.set(cover.path,links.cover);
+ if(square&&links.square)targets.set(square.path,links.square);
+ if(!targets.size)return record.html;
+ return String(record.html).replace(/(<img\b[^>]*?\bsrc\s*=\s*)(["'])(.*?)\2/gi,(whole,prefix,quote,value)=>{
+  const url=targets.get(resolveAsset(record.entryPath||'index.html',value.trim()));
+  return url?prefix+quote+url.replace(/&/g,'&amp;')+quote:whole;
+ });
+}
+// 본문이 가리키지만 가져온 파일 안에 없는 이미지(HTML만 가져왔을 때 썸네일이 비는 원인). [{ref,path}]
+export function missingImageRefs(html,entryPath,assets){
+ const have=new Set((assets||[]).map(a=>a.path));const missing=[];
+ for(const match of String(html).matchAll(/<img\b[^>]*?\bsrc\s*=\s*(["'])(.*?)\1/gi)){
+  const ref=match[2].trim();const path=resolveAsset(entryPath||'index.html',ref);
+  if(path&&!have.has(path)&&!missing.some(x=>x.path===path))missing.push({ref,path});
+ }
+ return missing;
+}
+// 글 파일(entryPath) 기준으로 target 을 가리키는 상대 경로.
+export function relativeRef(entryPath,target){
+ const from=String(entryPath||'index.html').split('/').slice(0,-1),to=String(target).split('/');let i=0;
+ while(i<from.length&&i<to.length-1&&from[i]===to[i])i++;
+ return '../'.repeat(from.length-i)+to.slice(i).join('/');
+}
+// 대표 이미지를 새 파일(newPath)로 바꿀 때 본문을 맞춘다: 옛 파일·없는 썸네일 파일을 가리키던 <img> 를 새 경로로, 대표 이미지 자리가 비어 있으면 <img> 를 넣는다.
+export function attachCoverToHTML(record,newPath,oldPath=null){
+ const assets=(record.assets||[]).filter(a=>a.path!==oldPath&&a.path!==newPath);
+ const entry=record.entryPath||'index.html',target=relativeRef(entry,newPath);let changed=false;
+ let html=String(record.html).replace(/(<img\b[^>]*?\bsrc\s*=\s*)(["'])(.*?)\2/gi,(whole,prefix,quote,value)=>{
+  const path=resolveAsset(entry,value.trim());
+  if(!path||path===newPath){if(path===newPath)changed=true;return whole;}
+  const stale=path===oldPath||(!assets.some(a=>a.path===path)&&/thumb|cover/i.test(path));
+  if(!stale)return whole;
+  changed=true;return prefix+quote+target+quote;
+ });
+ if(!changed){
+  const image='<img src="'+target+'" width="1280" height="720" alt="" fetchpriority="high">';
+  // 새 글의 안내 자리(placeholder), 또는 화면 편집에서 저장되며 안내 자리가 지워진 빈 대표 이미지 영역에 넣는다.
+  const placeholder=/<div class="qbe-cover-placeholder"[^>]*>[\s\S]*?<\/div>/,empty=/(<figure class="qbe-cover"[^>]*>)\s*(<\/figure>)/;
+  if(placeholder.test(html)){html=html.replace(placeholder,image);changed=true;}
+  else if(empty.test(html)){html=html.replace(empty,'$1'+image+'$2');changed=true;}
+ }
+ return {html,changed};
+}
+export async function exportFolder(records,Zip,{imageMode='files'}={}){
  const zip=new Zip();const root=zip.folder('qrator-guides');const items=[];
  for(const record of records){
   if(!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(record.slug))throw new Error('콘텐츠 주소가 올바르지 않습니다.');
   const container='articles/'+record.slug+'/';const folder=container+'source/';const entryPath=safeArchivePath(record.entryPath);
-  root.file(folder+entryPath,record.html);
+  root.file(folder+entryPath,imageMode==='api'?apiImageHTML(record):record.html);
   for(const asset of record.assets)root.file(folder+safeArchivePath(asset.path),asset.base64,{base64:true});
   const {html,assets,history,...meta}=record;
   root.file(container+'content.json',JSON.stringify({...meta,entryPath,assets:assets.map(({path,mime})=>({path,mime}))},null,2));
@@ -128,6 +187,6 @@ export async function exportFolder(records,Zip){
  }
  root.file('manifest.json',JSON.stringify({schemaVersion:1,exportedAt:new Date().toISOString(),count:items.length,items},null,2));
  root.file('index.html','<!doctype html><html lang="ko"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>큐레이터 등기 가이드 전달 목록</title><style>body{font:16px/1.7 sans-serif;max-width:1000px;margin:60px auto;padding:24px}table{border-collapse:collapse;width:100%}td,th{border-bottom:1px solid #ddd;padding:14px;text-align:left}a{color:#0366ff}</style><h1>큐레이터 등기 가이드 전달 목록</h1><table><thead><tr><th>카테고리</th><th>제목</th><th>검토 상태</th><th>수정자</th></tr></thead><tbody>'+items.map(x=>'<tr><td>'+esc(x.category)+'</td><td><a href="'+esc(x.file)+'">'+esc(x.title)+'</a></td><td>'+esc(statusLabel(x.status))+'</td><td>'+esc(x.updatedBy)+'</td></tr>').join('')+'</tbody></table></html>');
- root.file('README.txt','Qrator 등기 가이드 개발팀 전달 패키지\n\nindex.html: 검토 목록\nmanifest.json: 제목·카테고리·상태·출처·원본 경로\narticles/{slug}/: 본문 HTML, 첨부 파일, content.json\n\n각 글의 기존 상대 경로를 보존했습니다. 외부 URL 자원은 원문 연결을 유지합니다.\n이 패키지를 내려받아도 홈페이지가 자동으로 공개되지는 않습니다.\n');
+ root.file('README.txt','Qrator 등기 가이드 개발팀 전달 패키지\n\nindex.html: 검토 목록\nmanifest.json: 제목·카테고리·상태·출처·원본 경로\narticles/{slug}/: 본문 HTML, 첨부 파일, content.json\n\n각 글의 기존 상대 경로를 보존했습니다. 외부 URL 자원은 원문 연결을 유지합니다.\n'+(imageMode==='api'?'본문 HTML 의 대표·목록 썸네일 <img> 는 파일 대신 로그인 없이 열리는 이미지 API 주소로 연결되어 있습니다(파일도 source/assets 에 함께 있습니다). 주소는 content.json 의 imageLinks 에도 있습니다.\n':'대표·목록 썸네일의 이미지 API 주소는 content.json 의 imageLinks 에 있습니다. HTML 만 따로 옮기면 상대 경로 이미지가 빠지니 이미지 폴더를 함께 옮기거나 API 주소를 쓰세요.\n')+'이 패키지를 내려받아도 홈페이지가 자동으로 공개되지는 않습니다.\n');
  return zip.generateAsync({type:'uint8array',compression:'DEFLATE'});
 }

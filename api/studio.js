@@ -1,5 +1,5 @@
 import {createHash} from 'node:crypto';
-import {authenticated,session,equal,fail,slug,validate,nextRecord,summary,MAX_BYTES} from '../lib/core.mjs';
+import {authenticated,session,equal,fail,slug,validate,nextRecord,summary,thumbnailLinks,MAX_BYTES} from '../lib/core.mjs';
 import {read,write,list,remove,removePrefix} from '../lib/storage.mjs';
 import {loadTagDict,normalizeRecordTags,retagAll} from '../lib/tags-store.mjs';
 import {topicLabels,tagGroups} from '../lib/tags.mjs';
@@ -94,7 +94,7 @@ export default async function handler(req,res){
   }
   const id=slug(req.query.slug||body.slug||body.record?.slug);const key='studio/records/'+id+'.json';const current=await read(key);
   if(op==='thumbnail'){if(!current||current.value.deletedAt)fail(404,'콘텐츠가 없습니다.');const path=String(req.query.path||'');const asset=current.value.assets.find(a=>a.path===path);if(!asset||!String(asset.mime||'').startsWith('image/'))fail(404,'썸네일을 찾을 수 없습니다.');res.setHeader('Content-Type',asset.mime);res.setHeader('Cache-Control','private, max-age=300');return res.status(200).send(Buffer.from(asset.base64,'base64'));}
-  if(op==='get'){if(!current||current.value.deletedAt)fail(404,'콘텐츠가 없습니다.');return send(200,current.value);}
+  if(op==='get'){if(!current||current.value.deletedAt)fail(404,'콘텐츠가 없습니다.');return send(200,{...current.value,imageLinks:thumbnailLinks(current.value,env)});}
   if(op==='version'){const revision=String(req.query.revision||'');if(!current||!current.value.history.some(x=>x.revision===revision))fail(404,'수정 이력이 없습니다.');const version=await read('studio/versions/'+id+'/'+revision+'.json');if(!version)fail(404,'수정 이력이 없습니다.');return send(200,version.value);}
   if(op==='save'){
    // 주제 태그를 바꿨을 때만 사전 표기로 맞춘다(바꾸지 않은 예전 글은 그대로 저장). 사전 저장소 문제로 저장이 막히지 않게 한다.

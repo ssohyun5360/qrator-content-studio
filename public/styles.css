@@ -19,3 +19,21 @@ h1{line-height:1.2}
 
 /* Consistent controls across list, filter and editor toolbars */
 select{-webkit-appearance:none;appearance:none;padding-right:34px;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6' fill='none'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%23343A46' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;background-size:10px 6px}.list-tools select,.list-tools>button,.list-tools>.create-split{height:36px}.filter-row button,.form-row>div>button{height:40px}
+
+/* Thumbnails: list = 1:1 tile, editor = 16:9 detail cover + 1:1 list thumbnail */
+.content-table th:nth-child(3){width:92px}
+.thumb-frame{display:block;width:64px;height:64px;margin:0 auto;border:1px solid var(--line);border-radius:6px;overflow:hidden;background:#edf4ff}
+.thumb-frame .thumb-image{display:block;width:100%;height:100%;object-fit:cover;border:0}
+.thumb{width:64px;height:64px;margin:0 auto;border-radius:6px}
+.thumb-panel{display:flex;gap:24px;align-items:flex-start;flex-wrap:wrap}
+.thumb-slot{margin:0;display:flex;flex-direction:column;gap:8px;max-width:100%}
+.thumb-preview{position:relative;overflow:hidden;display:grid;place-items:center;border:1px solid var(--line);border-radius:6px;background:#f5f6fa;max-width:100%}
+.thumb-preview.ratio-wide{width:288px;aspect-ratio:16/9}
+.thumb-preview.ratio-square{width:162px;aspect-ratio:1/1}
+.thumb-preview img{display:block;width:100%;height:100%;object-fit:contain}
+.thumb-empty{color:#9aa1ad;font-size:12px}
+.thumb-slot figcaption{display:flex;flex-direction:column;gap:6px;max-width:288px}
+.thumb-slot figcaption strong{font-size:13px}
+.thumb-slot .hint.ok{color:#13805b}.thumb-slot .hint.warn{color:#b66d00}
+.thumb-actions{display:flex;gap:8px;flex-wrap:wrap}.thumb-actions button{height:32px;min-width:0;padding:0 10px;font-size:12px}
+.export-option{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:#4a5260;cursor:pointer;white-space:nowrap}
