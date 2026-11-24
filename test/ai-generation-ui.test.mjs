@@ -9,7 +9,11 @@ test('AI 생성 팝업은 단일 생성과 엑셀 붙여넣기 일괄 생성을 
  assert.match(ui,/data-ai-mode="single"/);
  assert.match(ui,/data-ai-mode="bulk"/);
  assert.match(ui,/id="aiBulkInput"/);
- assert.match(ui,/QRATOR_AI_콘텐츠_일괄생성_템플릿\.csv/);
+ assert.match(ui,/QRATOR_콘텐츠_일정표_일괄생성_양식\.csv/);
+ assert.match(ui,/소재 \/ 기획방향/);
+ assert.match(ui,/function inferAiCategory/);
+ assert.match(ui,/이미 발행됨/);
+ assert.match(ui,/brief:item\.brief,planning:item\.planning/);
  assert.match(ui,/한 번에 최대 50건/);
 });
 

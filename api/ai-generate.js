@@ -6,6 +6,13 @@ import {reserve,usedToday,dailyLimit} from '../lib/ai/usage.mjs';
 
 const MAX_BODY=20_000;
 const CATEGORIES=['상호 변경','본점 이전','목적 변경','임원 변경','지점 변경'];
+const PLANNING_FIELDS=['sequence','month','progress','assignee','publishDate','weekday','series','keywords','blogUrl','references'];
+const textValue=(value,max,label)=>{const text=value===undefined||value===null?'':String(value).trim();if(text.length>max)fail(400,`${label}은(는) ${max}자 이내로 입력해 주세요.`);return text;};
+function planningValue(value){
+ if(value===undefined||value===null)return {};
+ if(typeof value!=='object'||Array.isArray(value))fail(400,'콘텐츠 일정 정보를 확인해 주세요.');
+ return Object.fromEntries(PLANNING_FIELDS.map(name=>[name,textValue(value[name],name==='references'?2000:500,'콘텐츠 일정 정보')]).filter(([,text])=>text));
+}
 
 export default async function handler(req,res){
  res.setHeader('Cache-Control','private, no-store');
@@ -36,12 +43,13 @@ export default async function handler(req,res){
   if(op==='create'){
    const runners=getRunners(env);
    if(!runners)fail(503,'AI 생성 단계가 준비되지 않았습니다.');
-   const topic=body.topic===undefined||body.topic===null?'':String(body.topic).trim();
-   if(topic.length>200)fail(400,'주제는 200자 이내로 입력해 주세요.');
+   const topic=textValue(body.topic,200,'주제');
    const category=body.category===undefined||body.category===null||body.category===''?'':String(body.category);
    if(category&&!CATEGORIES.includes(category))fail(400,'카테고리를 확인해 주세요.');
+   const brief=textValue(body.brief,8000,'소재·기획방향');
+   const planning=planningValue(body.planning);
    await reserve(env);
-   const job=await createJob(newJob({stepNames:STEP_NAMES,input:{mode:topic?'manual':'auto',topic,category},meta:{mock:env.AI_MOCK==='1'}}));
+   const job=await createJob(newJob({stepNames:STEP_NAMES,input:{mode:topic?'manual':'auto',topic,category,brief,planning},meta:{mock:env.AI_MOCK==='1'}}));
    return send(201,{job:publicJob(job)});
   }
   if(op==='advance'){

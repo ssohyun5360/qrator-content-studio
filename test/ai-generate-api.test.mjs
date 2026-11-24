@@ -23,8 +23,10 @@ test('화면 연결: 생성 요청(주제·카테고리) → 단계별 진행 �
  store.clear();
  const st=await call('status',{},'GET');
  assert.equal(st.data.enabled,true);assert.equal(st.data.mock,true);
- const c=await call('create',{topic:'대표이사가 재선임됐을 때도 변경등기를 해야 하나요?',category:'임원 변경'});
+ const c=await call('create',{topic:'대표이사가 재선임됐을 때도 변경등기를 해야 하나요?',category:'임원 변경',brief:'[소재] 임기 만료 뒤 필요한 절차\nㄴ 실무 순서 중심',planning:{month:'11월',progress:'소재 제안',publishDate:'11-24',weekday:'화',series:'임원 변경',keywords:'임원·중임',references:'https://example.com/reference'}});
  assert.equal(c.code,201);assert.equal(c.data.job.input.category,'임원 변경');assert.equal(c.data.job.input.mode,'manual');
+ assert.equal(c.data.job.input.brief,'[소재] 임기 만료 뒤 필요한 절차\nㄴ 실무 순서 중심');
+ assert.equal(c.data.job.input.planning.publishDate,'11-24');assert.equal(c.data.job.input.planning.series,'임원 변경');
  let job=c.data.job,guard=0;
  while(job.status!=='done'&&guard++<30){const r=await call('advance',{id:job.id});assert.equal(r.code,200);job=r.data.job;assert.notEqual(job.status,'failed',JSON.stringify(job.steps.filter(s=>s.error)));}
  assert.equal(job.status,'done');assert.equal(job.steps.length,9);
@@ -41,6 +43,14 @@ test('카테고리는 정해진 5개만 받고, 비워 두면 자동이다',asyn
  assert.equal((await call('create',{topic:'',category:'없는 분류'})).code,400);
  const auto=await call('create',{topic:'',category:''});
  assert.equal(auto.code,201);assert.equal(auto.data.job.input.mode,'auto');
+});
+
+test('엑셀 기획 정보는 허용된 필드만 저장하고 길이를 검사한다',async()=>{
+ store.clear();
+ const made=await call('create',{topic:'본점 이전 일정',planning:{assignee:'담당자',unknown:'저장 금지'}});
+ assert.equal(made.code,201);assert.equal(made.data.job.input.planning.assignee,'담당자');assert.equal(made.data.job.input.planning.unknown,undefined);
+ const tooLong=await call('create',{topic:'본점 이전 일정',brief:'a'.repeat(8001)});
+ assert.equal(tooLong.code,400);
 });
 
 test('기능이 꺼져 있으면 status 는 알려 주고 create 는 막는다',async()=>{
