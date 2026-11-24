@@ -140,6 +140,17 @@ export function apiImageHTML(record){
  });
 }
 // 본문이 가리키지만 가져온 파일 안에 없는 이미지(HTML만 가져왔을 때 썸네일이 비는 원인). [{ref,path}]
+// 목록에서 특정 글들을 찾아 보여 줄 때: 현재 필터 결과(filtered) 안에서 찾은 글, 못 찾은 글, 첫 글이 있는 페이지(1부터)를 계산한다.
+export function locateRecords(filtered,slugs,pageSize=20){
+ const wanted=[...new Set((slugs||[]).map(String).filter(Boolean))];
+ const set=new Set(wanted);
+ const rows=(filtered||[]);
+ const found=rows.filter(x=>set.has(x.slug)).map(x=>x.slug);
+ const size=Math.max(1,Number(pageSize)||20);
+ const first=found.length?rows.findIndex(x=>x.slug===found[0]):-1;
+ return {found,missing:wanted.filter(slug=>!found.includes(slug)),page:first<0?1:Math.floor(first/size)+1};
+}
+
 export function missingImageRefs(html,entryPath,assets){
  const have=new Set((assets||[]).map(a=>a.path));const missing=[];
  for(const match of String(html).matchAll(/<img\b[^>]*?\bsrc\s*=\s*(["'])(.*?)\1/gi)){

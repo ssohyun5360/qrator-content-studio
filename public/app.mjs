@@ -1,7 +1,7 @@
-import {CATEGORIES,STATUS,REVIEW_STATUS,normalizeStatus,statusLabel,esc,slugify,metadataFromHTML,suggestTags,readArchive,previewHTML,editedHTML,exportFolder,mime,missingImageRefs,attachCoverToHTML} from '/client-helpers.mjs';
+import {CATEGORIES,STATUS,REVIEW_STATUS,normalizeStatus,statusLabel,esc,slugify,metadataFromHTML,suggestTags,readArchive,previewHTML,editedHTML,exportFolder,mime,missingImageRefs,attachCoverToHTML,locateRecords} from '/client-helpers.mjs';
 import {pickThumbnails,describeRatio,thumbnailPaths} from '/thumb-helpers.mjs';
 const $=id=>document.getElementById(id);
-const state={items:[],filtered:[],selected:new Set(),page:1,user:{name:'공용 관리자'},current:null,mode:'visual',dirty:false,editorReady:false,contentType:'all'};
+const state={items:[],filtered:[],selected:new Set(),page:1,user:{name:'공용 관리자'},current:null,mode:'visual',dirty:false,editorReady:false,contentType:'all',highlight:new Set()};
 const CONTENT_TYPES=new Set(['all','guide','workbook','insight']);
 const recordContentType=record=>['guide','workbook','insight'].includes(record?.contentType)?record.contentType:'guide';
 const AUTOMATION_STATUS={manual:'직접 작성',queued:'생성 대기',generating:'생성 중',review_required:'검토 필요',approval_pending:'최종 승인 대기',complete:'완료',failed:'실패'};
@@ -50,7 +50,7 @@ function renderList(){
  const visible=state.filtered.slice((state.page-1)*size,state.page*size);
  const scheduled=state.filtered.filter(x=>x.status==='scheduled').length,completed=state.filtered.filter(x=>x.status==='completed').length,published=state.filtered.filter(x=>x.status==='published').length;
  $('totalCount').textContent='총 '+count+'건  |  게시 예정 '+scheduled+' · 작성 완료 '+completed+' · 게시 완료 '+published;
- $('rows').innerHTML=visible.length?visible.map((r,i)=>'<tr><td><input type="checkbox" class="row-check" data-slug="'+esc(r.slug)+'" aria-label="'+esc(r.title)+' 선택" '+(state.selected.has(r.slug)?'checked':'')+'></td><td>'+(count-(state.page-1)*size-i)+'</td><td>'+listThumbnail(r)+'</td><td>'+esc(r.category.replace(' 변경','').replace(' 이전',''))+'</td><td><button class="article-title" data-open="'+esc(r.slug)+'">'+esc(r.title)+'</button><div class="small muted">'+esc(r.slug)+'</div></td><td>'+r.tags.slice(0,3).map(t=>'<span class="tag">'+esc(t)+'</span>').join('')+'</td><td>'+inlineStatusSelect('reviewStatus',r.slug,r.reviewStatus||'pending',REVIEW_STATUS)+'</td><td>'+inlineStatusSelect('status',r.slug,r.status,STATUS)+'</td><td>'+dateTime(r.scheduledAt)+'</td><td>'+dateTime(r.updatedAt)+'</td><td>'+esc(r.updatedBy||r.author)+'</td><td><button class="danger table-trash-button" data-trash="'+esc(r.slug)+'" data-revision="'+esc(r.revision)+'">휴지통</button></td></tr>').join(''):'<tr><td colspan="12" class="empty">조건에 맞는 콘텐츠가 없습니다.</td></tr>';
+ $('rows').innerHTML=visible.length?visible.map((r,i)=>'<tr'+(state.highlight.has(r.slug)?' class="row-focus" aria-current="true"':'')+'><td><input type="checkbox" class="row-check" data-slug="'+esc(r.slug)+'" aria-label="'+esc(r.title)+' 선택" '+(state.selected.has(r.slug)?'checked':'')+'></td><td>'+(count-(state.page-1)*size-i)+'</td><td>'+listThumbnail(r)+'</td><td>'+esc(r.category.replace(' 변경','').replace(' 이전',''))+'</td><td><button class="article-title" data-open="'+esc(r.slug)+'">'+esc(r.title)+'</button><div class="small muted">'+esc(r.slug)+'</div></td><td>'+r.tags.slice(0,3).map(t=>'<span class="tag">'+esc(t)+'</span>').join('')+'</td><td>'+inlineStatusSelect('reviewStatus',r.slug,r.reviewStatus||'pending',REVIEW_STATUS)+'</td><td>'+inlineStatusSelect('status',r.slug,r.status,STATUS)+'</td><td>'+dateTime(r.scheduledAt)+'</td><td>'+dateTime(r.updatedAt)+'</td><td>'+esc(r.updatedBy||r.author)+'</td><td><button class="danger table-trash-button" data-trash="'+esc(r.slug)+'" data-revision="'+esc(r.revision)+'">휴지통</button></td></tr>').join(''):'<tr><td colspan="12" class="empty">조건에 맞는 콘텐츠가 없습니다.</td></tr>';
  $('selectedCount').textContent=state.selected.size+'건 선택';
  $('selectedActions').hidden=state.selected.size===0;
  if($('deleteSelected'))$('deleteSelected').disabled=deletingSelected||state.selected.size===0;
@@ -438,6 +438,25 @@ $('thumbPanel').onclick=guard(async e=>{
 });
 $('thumbInput').onchange=guard(async e=>{const file=e.target.files[0];e.target.value='';if(file)await replaceThumbnail(thumbVariant,file);});
 document.addEventListener('qrator:open-record',guard(e=>openRecord(e.detail)));
+// 대시보드 "목록에서 확인": 필터를 풀고 목록을 새로 불러온 뒤, 해당 글이 있는 페이지로 가서 그 줄을 표시한다.
+let highlightTimer;
+function clearHighlight(){clearTimeout(highlightTimer);state.highlight=new Set();$('rows').querySelectorAll('tr.row-focus').forEach(tr=>{tr.classList.remove('row-focus');tr.removeAttribute('aria-current');});}
+async function focusRecords(slugs){
+ const wanted=[...new Set((slugs||[]).map(String).filter(Boolean))];if(!wanted.length)return;
+ if(!ensureLeave())return;state.dirty=false;
+ $('editorView').hidden=true;$('listView').hidden=false;
+ for(const id of ['search','categoryFilter','statusFilter','reviewFilter','tagFilter','dateFrom','dateTo'])$(id).value='';
+ document.querySelectorAll('[data-days]').forEach(b=>b.classList.toggle('period-active',b.dataset.days==='all'));
+ await loadItems();
+ let plan=locateRecords(state.filtered,wanted,$('pageSize').value);
+ if(plan.missing.length&&state.contentType!=='all'&&state.items.some(x=>plan.missing.includes(x.slug))){state.contentType='all';applyFilters();plan=locateRecords(state.filtered,wanted,$('pageSize').value);}
+ if(!plan.found.length){toast('방금 만든 글을 목록에서 찾지 못했어요. 삭제됐거나 휴지통에 있을 수 있어요.');return;}
+ clearHighlight();state.highlight=new Set(plan.found);state.page=plan.page;renderList();
+ $('rows').querySelector('tr.row-focus')?.scrollIntoView({block:'center'});
+ toast(plan.found.length===1?'AI가 작성한 글을 표시했어요. 제목을 누르면 열립니다.':'AI가 작성한 글 '+plan.found.length+'건을 표시했어요.'+(plan.missing.length?' ('+plan.missing.length+'건은 목록에서 찾지 못했어요)':''));
+ highlightTimer=setTimeout(clearHighlight,10500);
+}
+document.addEventListener('qrator:focus-records',guard(e=>focusRecords(e.detail?.slugs)));
 $('assetList').onclick=e=>{const b=e.target.closest('[data-asset-remove]');if(b){state.current.assets.splice(Number(b.dataset.assetRemove),1);renderAssets();markDirty();}};
 $('previewButton').onclick=guard(()=>{$('previewFrame').srcdoc=previewHTML(recordFromForm());$('previewFrame').style.maxWidth='100%';$('previewDialog').showModal();});
 $('closePreview').onclick=()=>$('previewDialog').close();$('desktopPreview').onclick=()=>$('previewFrame').style.maxWidth='100%';$('mobilePreview').onclick=()=>$('previewFrame').style.maxWidth='390px';

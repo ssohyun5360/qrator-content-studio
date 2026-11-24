@@ -32,6 +32,11 @@ test('화면 연결: 생성 요청(주제·카테고리) → 단계별 진행 �
  assert.equal(job.status,'done');assert.equal(job.steps.length,9);
  const got=await call('get',{},'GET',{id:job.id});
  const slug=got.data.outputs.save.slug;
+ // 대시보드가 "목록에서 확인" 때 그 글로 바로 이동할 수 있도록, 완료된 작업은 만들어진 글의 slug·제목을 알려 준다.
+ assert.equal(job.result.slug,slug);assert.equal(got.data.job.result.slug,slug);assert.equal(typeof job.result.title,'string');
+ assert.equal(job.outputs,undefined,'단계별 산출물은 브라우저로 내려주지 않는다');
+ const listed=await call('list',{},'GET');
+ assert.equal(listed.data.items.find(item=>item.id===job.id).result.slug,slug);
  const rec=JSON.parse(store.get('studio/records/'+slug+'.json').body);
  assert.equal(rec.status,'draft');assert.equal(rec.reviewStatus,'pending');assert.equal(rec.contentType,'insight');assert.equal(rec.generatedBy,'ai');
  assert.match(rec.title,/^\[테스트\]/);

@@ -38,5 +38,11 @@ select{-webkit-appearance:none;appearance:none;padding-right:34px;background-ima
 .thumb-actions{display:flex;gap:8px;flex-wrap:wrap}.thumb-actions button{height:32px;min-width:0;padding:0 10px;font-size:12px}
 .export-option{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:#4a5260;cursor:pointer;white-space:nowrap}
 
+/* 대시보드 "목록에서 확인"으로 넘어온 글 강조 (10초 뒤 자연스럽게 사라짐) */
+.content-table tr.row-focus td{background:#eaf2ff;animation:row-focus-fade 10s ease-out forwards}
+.content-table tr.row-focus td:first-child{box-shadow:inset 4px 0 0 var(--primary)}
+@keyframes row-focus-fade{0%,70%{background:#eaf2ff}100%{background:#fff}}
+@media (prefers-reduced-motion:reduce){.content-table tr.row-focus td{animation:none}}
+
 /* Content type tabs */
 .content-kind-tabs{display:flex;align-items:stretch;gap:4px}.content-kind-tabs button{height:42px;min-width:120px;padding:0 18px;border:0;border-bottom:3px solid transparent;border-radius:0;background:transparent;color:#777f8d;font-weight:600}.content-kind-tabs button:hover{background:#f7f9fc;border-color:transparent}.content-kind-tabs button.active{color:var(--active);border-bottom-color:var(--active);background:#fff}.content-kind-tabs button:focus-visible{outline-offset:-3px}
