@@ -23,8 +23,8 @@ test('화면 연결: 생성 요청(주제·카테고리) → 단계별 진행 �
  store.clear();
  const st=await call('status',{},'GET');
  assert.equal(st.data.enabled,true);assert.equal(st.data.mock,true);
- const c=await call('create',{topic:'대표이사가 재선임됐을 때도 변경등기를 해야 하나요?',category:'임원 변경',brief:'[소재] 임기 만료 뒤 필요한 절차\nㄴ 실무 순서 중심',planning:{month:'11월',progress:'소재 제안',publishDate:'11-24',weekday:'화',series:'임원 변경',keywords:'임원·중임',references:'https://example.com/reference'}});
- assert.equal(c.code,201);assert.equal(c.data.job.input.category,'임원 변경');assert.equal(c.data.job.input.mode,'manual');
+ const c=await call('create',{topic:'대표이사가 재선임됐을 때도 변경등기를 해야 하나요?',category:'임원 변경',contentType:'insight',brief:'[소재] 임기 만료 뒤 필요한 절차\nㄴ 실무 순서 중심',planning:{month:'11월',progress:'소재 제안',publishDate:'11-24',weekday:'화',series:'임원 변경',keywords:'임원·중임',references:'https://example.com/reference'}});
+ assert.equal(c.code,201);assert.equal(c.data.job.input.category,'임원 변경');assert.equal(c.data.job.input.contentType,'insight');assert.equal(c.data.job.input.mode,'manual');
  assert.equal(c.data.job.input.brief,'[소재] 임기 만료 뒤 필요한 절차\nㄴ 실무 순서 중심');
  assert.equal(c.data.job.input.planning.publishDate,'11-24');assert.equal(c.data.job.input.planning.series,'임원 변경');
  let job=c.data.job,guard=0;
@@ -33,7 +33,7 @@ test('화면 연결: 생성 요청(주제·카테고리) → 단계별 진행 �
  const got=await call('get',{},'GET',{id:job.id});
  const slug=got.data.outputs.save.slug;
  const rec=JSON.parse(store.get('studio/records/'+slug+'.json').body);
- assert.equal(rec.status,'draft');assert.equal(rec.reviewStatus,'pending');assert.equal(rec.generatedBy,'ai');
+ assert.equal(rec.status,'draft');assert.equal(rec.reviewStatus,'pending');assert.equal(rec.contentType,'insight');assert.equal(rec.generatedBy,'ai');
  assert.match(rec.title,/^\[테스트\]/);
  assert.ok(rec.tags.length>=2&&rec.tags.length<=4);
 });
@@ -41,6 +41,7 @@ test('화면 연결: 생성 요청(주제·카테고리) → 단계별 진행 �
 test('카테고리는 정해진 5개만 받고, 비워 두면 자동이다',async()=>{
  store.clear();
  assert.equal((await call('create',{topic:'',category:'없는 분류'})).code,400);
+ assert.equal((await call('create',{topic:'',contentType:'없는 유형'})).code,400);
  const auto=await call('create',{topic:'',category:''});
  assert.equal(auto.code,201);assert.equal(auto.data.job.input.mode,'auto');
 });

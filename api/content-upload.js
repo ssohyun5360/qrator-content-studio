@@ -2,7 +2,7 @@ import {equal,fail,nextRecord,MAX_BYTES} from '../lib/core.mjs';
 import {read,write} from '../lib/storage.mjs';
 import {normalizeRecordTags} from '../lib/tags-store.mjs';
 
-const COMPARE_KEYS=['title','category','summary','author','note','verification','seoTitle','seoDescription','html','entryPath','assets','tags','keywords','sourceUrls','status','reviewStatus'];
+const COMPARE_KEYS=['title','category','contentType','summary','author','note','verification','seoTitle','seoDescription','html','entryPath','assets','tags','keywords','sourceUrls','status','reviewStatus'];
 function sameContent(a,b){return JSON.stringify(COMPARE_KEYS.map(k=>a[k]??null))===JSON.stringify(COMPARE_KEYS.map(k=>b[k]??null));}
 
 export default async function handler(req,res){
@@ -25,6 +25,7 @@ if(!authorization.startsWith('Bearer ')||!tokens.some(t=>equal(authorization.sli
 
   const record={
    ...(body.record||body),
+   contentType:String(body.record?.contentType||body.contentType||'guide'),
    status:'draft',
    reviewStatus:'pending',
    verification:'검토 전',

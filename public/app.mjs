@@ -1,7 +1,9 @@
 import {CATEGORIES,STATUS,REVIEW_STATUS,normalizeStatus,statusLabel,esc,slugify,metadataFromHTML,suggestTags,readArchive,previewHTML,editedHTML,exportFolder,mime,missingImageRefs,attachCoverToHTML} from '/client-helpers.mjs';
 import {pickThumbnails,describeRatio,thumbnailPaths} from '/thumb-helpers.mjs';
 const $=id=>document.getElementById(id);
-const state={items:[],filtered:[],selected:new Set(),page:1,user:{name:'공용 관리자'},current:null,mode:'visual',dirty:false,editorReady:false};
+const state={items:[],filtered:[],selected:new Set(),page:1,user:{name:'공용 관리자'},current:null,mode:'visual',dirty:false,editorReady:false,contentType:'all'};
+const CONTENT_TYPES=new Set(['all','guide','workbook','insight']);
+const recordContentType=record=>['guide','workbook','insight'].includes(record?.contentType)?record.contentType:'guide';
 const AUTOMATION_STATUS={manual:'직접 작성',queued:'생성 대기',generating:'생성 중',review_required:'검토 필요',approval_pending:'최종 승인 대기',complete:'완료',failed:'실패'};
 const automationStatus=record=>record.automationStatus||(record.generatedBy==='ai'?'review_required':'manual');
 const inlineStatusSelect=(field,slug,current,labels)=>'<select class="table-status-select '+(field==='reviewStatus'?'review-':'status-')+esc(current)+'" data-inline-field="'+field+'" data-slug="'+esc(slug)+'" aria-label="'+(field==='reviewStatus'?'검토 상태':'게시 상태')+' 변경">'+Object.entries(labels).map(([value,label])=>'<option value="'+esc(value)+'" '+(value===current?'selected':'')+'>'+esc(label)+'</option>').join('')+'</select>';
@@ -34,7 +36,7 @@ async function loadItems(){
 function applyFilters(){
  const field=$('searchField').value,query=$('search').value.trim().toLowerCase(),category=$('categoryFilter').value,status=$('statusFilter').value,review=$('reviewFilter').value,tag=$('tagFilter').value,from=$('dateFrom').value,to=$('dateTo').value,dateField=$('dateField').value;
  if(from&&to&&from>to){toast('시작일과 종료일을 확인해 주세요.');return;}
- state.filtered=state.items.filter(x=>(!query||String(x[field]||'').toLowerCase().includes(query))&&(!category||x.category===category)&&(!status||x.status===status)&&(!review||(x.reviewStatus||'pending')===review)&&(!tag||(x.topicTags||x.tags||[]).includes(tag))&&(!from||kstDate(x[dateField])>=from)&&(!to||kstDate(x[dateField])<=to));
+ state.filtered=state.items.filter(x=>(state.contentType==='all'||recordContentType(x)===state.contentType)&&(!query||String(x[field]||'').toLowerCase().includes(query))&&(!category||x.category===category)&&(!status||x.status===status)&&(!review||(x.reviewStatus||'pending')===review)&&(!tag||(x.topicTags||x.tags||[]).includes(tag))&&(!from||kstDate(x[dateField])>=from)&&(!to||kstDate(x[dateField])<=to));
  const sort=$('sort').value;state.filtered.sort((a,b)=>sort==='title'?a.title.localeCompare(b.title,'ko'):b[sort].localeCompare(a[sort]));state.page=1;renderList();
 }
 // 목록은 항상 1:1 타일. 목록용 1:1 이미지(-square)가 있으면 그것을, 없으면 대표 이미지를 가운데 기준으로 정사각형에 맞춰 보여 준다.
@@ -46,7 +48,7 @@ function listThumbnail(r){
 function renderList(){
  const count=state.filtered.length,size=Number($('pageSize').value),pages=Math.max(1,Math.ceil(count/size));state.page=Math.min(state.page,pages);
  const visible=state.filtered.slice((state.page-1)*size,state.page*size);
- const scheduled=state.items.filter(x=>x.status==='scheduled').length,completed=state.items.filter(x=>x.status==='completed').length,published=state.items.filter(x=>x.status==='published').length;
+ const scheduled=state.filtered.filter(x=>x.status==='scheduled').length,completed=state.filtered.filter(x=>x.status==='completed').length,published=state.filtered.filter(x=>x.status==='published').length;
  $('totalCount').textContent='총 '+count+'건  |  게시 예정 '+scheduled+' · 작성 완료 '+completed+' · 게시 완료 '+published;
  $('rows').innerHTML=visible.length?visible.map((r,i)=>'<tr><td><input type="checkbox" class="row-check" data-slug="'+esc(r.slug)+'" aria-label="'+esc(r.title)+' 선택" '+(state.selected.has(r.slug)?'checked':'')+'></td><td>'+(count-(state.page-1)*size-i)+'</td><td>'+listThumbnail(r)+'</td><td>'+esc(r.category.replace(' 변경','').replace(' 이전',''))+'</td><td><button class="article-title" data-open="'+esc(r.slug)+'">'+esc(r.title)+'</button><div class="small muted">'+esc(r.slug)+'</div></td><td>'+r.tags.slice(0,3).map(t=>'<span class="tag">'+esc(t)+'</span>').join('')+'</td><td>'+inlineStatusSelect('reviewStatus',r.slug,r.reviewStatus||'pending',REVIEW_STATUS)+'</td><td>'+inlineStatusSelect('status',r.slug,r.status,STATUS)+'</td><td>'+dateTime(r.scheduledAt)+'</td><td>'+dateTime(r.updatedAt)+'</td><td>'+esc(r.updatedBy||r.author)+'</td><td><button class="danger table-trash-button" data-trash="'+esc(r.slug)+'" data-revision="'+esc(r.revision)+'">휴지통</button></td></tr>').join(''):'<tr><td colspan="12" class="empty">조건에 맞는 콘텐츠가 없습니다.</td></tr>';
  $('selectedCount').textContent=state.selected.size+'건 선택';
@@ -309,7 +311,7 @@ function fillEditor(record){
 }
 async function openRecord(slug){if(!ensureLeave())return;const r=await api('get',null,{slug});fillEditor(r);}
 function newRecord(){
- if(!ensureLeave())return;fillEditor({slug:'',title:'',category:CATEGORIES[0],summary:'',tags:[],html:starterHTML.replaceAll('작성일 입력',kstDate(new Date())).replaceAll('{{article-date}}',kstDate(new Date()).replace(/^(\d{4})-(\d{2})-(\d{2})$/,'$1. $2. $3.')),templateId:'qrator-guide-v1',entryPath:'index.html',assets:[],author:state.user.name,status:'draft',reviewStatus:'pending',scheduledAt:null,note:'',sourceUrls:[],verification:'',history:[]});
+ if(!ensureLeave())return;fillEditor({slug:'',title:'',category:CATEGORIES[0],contentType:state.contentType==='all'?'guide':state.contentType,summary:'',tags:[],html:starterHTML.replaceAll('작성일 입력',kstDate(new Date())).replaceAll('{{article-date}}',kstDate(new Date()).replace(/^(\d{4})-(\d{2})-(\d{2})$/,'$1. $2. $3.')),templateId:'qrator-guide-v1',entryPath:'index.html',assets:[],author:state.user.name,status:'draft',reviewStatus:'pending',scheduledAt:null,note:'',sourceUrls:[],verification:'',history:[]});
 }
 async function save(){
  if(!$('editorForm').reportValidity())return;
@@ -398,6 +400,7 @@ $('rows').onchange=guard(async e=>{if(e.target.matches('.row-check')){e.target.c
 $('selectAll').onchange=e=>{const size=Number($('pageSize').value);state.filtered.slice((state.page-1)*size,state.page*size).forEach(r=>e.target.checked?state.selected.add(r.slug):state.selected.delete(r.slug));renderList();};
 $('pagination').onclick=e=>{const b=e.target.closest('[data-page]');if(b&&!b.disabled){state.page=Number(b.dataset.page);renderList();}};
 $('createButton').onclick=newRecord;$('navContents').onclick=guard(showList);$('backToList').onclick=guard(showList);
+document.addEventListener('qrator:content-type',event=>{const type=String(event.detail||'all');if(!CONTENT_TYPES.has(type))return;state.contentType=type;state.selected.clear();if(state.items.length)applyFilters();});
 $('importButton').onclick=()=>$('importInput').click();
 $('importInput').onchange=guard(async e=>{const files=[...e.target.files];e.target.value='';await importFiles(files);});
 $('downloadSelected').onclick=guard(async()=>download(await fetchSelected([...state.selected])));
