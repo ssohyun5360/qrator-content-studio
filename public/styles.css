@@ -24,6 +24,7 @@ select{-webkit-appearance:none;appearance:none;padding-right:34px;background-ima
 .content-table th:nth-child(3){width:92px}
 .thumb-frame{display:block;width:64px;height:64px;margin:0 auto;border:1px solid var(--line);border-radius:6px;overflow:hidden;background:#edf4ff}
 .thumb-frame .thumb-image{display:block;width:100%;height:100%;object-fit:cover;border:0}
+.content-table .thumb-frame .thumb-image{object-fit:contain}
 .thumb{width:64px;height:64px;margin:0 auto;border-radius:6px}
 .thumb-panel{display:flex;gap:24px;align-items:flex-start;flex-wrap:wrap}
 .thumb-slot{margin:0;display:flex;flex-direction:column;gap:8px;max-width:100%}

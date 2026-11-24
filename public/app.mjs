@@ -39,7 +39,8 @@ function applyFilters(){
  state.filtered=state.items.filter(x=>(state.contentType==='all'||recordContentType(x)===state.contentType)&&(!query||String(x[field]||'').toLowerCase().includes(query))&&(!category||x.category===category)&&(!status||x.status===status)&&(!review||(x.reviewStatus||'pending')===review)&&(!tag||(x.topicTags||x.tags||[]).includes(tag))&&(!from||kstDate(x[dateField])>=from)&&(!to||kstDate(x[dateField])<=to));
  const sort=$('sort').value;state.filtered.sort((a,b)=>sort==='title'?a.title.localeCompare(b.title,'ko'):b[sort].localeCompare(a[sort]));state.page=1;renderList();
 }
-// 목록은 항상 1:1 타일. 목록용 1:1 이미지(-square)가 있으면 그것을, 없으면 대표 이미지를 가운데 기준으로 정사각형에 맞춰 보여 준다.
+// 목록은 항상 1:1 타일. 목록용 1:1 이미지(-square)를 우선하고,
+// 이전 글처럼 대표 이미지만 있는 경우에도 자르지 않고 전체 이미지를 보여 준다.
 function listThumbnail(r){
  const path=r.thumbnailSquarePath||r.thumbnailPath;
  if(!path)return '<span class="thumb">'+esc(r.category)+'<br>등기 가이드</span>';
