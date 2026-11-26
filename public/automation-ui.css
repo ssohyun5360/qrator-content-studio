@@ -64,3 +64,9 @@
 #naverStudioOnlyPanel summary{cursor:pointer;font-weight:600}.naver-help{margin:10px 0;color:#7d8593;font-size:12px;line-height:1.6}
 .naver-only-list{margin:0;padding-left:18px;display:grid;gap:8px}.naver-only-list li{display:flex;gap:10px;align-items:baseline;flex-wrap:wrap}
 @media(max-width:900px){.naver-summary{grid-template-columns:repeat(2,1fr)}}
+.naver-tabs{display:flex;gap:4px;margin:0 0 12px;border-bottom:1px solid var(--line);overflow-x:auto;scrollbar-width:thin}
+.naver-tabs button{flex:0 0 auto;height:42px;min-width:0;padding:0 16px;border:0;border-bottom:3px solid transparent;border-radius:0;background:transparent;color:#5b6270;font-size:14px;font-weight:500}
+.naver-tabs button:hover{background:#f4f7fc;color:var(--primary)}
+.naver-tabs button.active{color:var(--primary);font-weight:700;border-bottom-color:var(--primary)}
+.naver-tabs button b{display:inline-block;min-width:22px;margin-left:4px;padding:1px 6px;border-radius:10px;background:#eef0f5;color:#6b7280;font-size:11px;font-weight:600;text-align:center}
+.naver-tabs button.active b{background:#e6efff;color:var(--primary)}

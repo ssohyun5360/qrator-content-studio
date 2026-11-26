@@ -100,6 +100,7 @@ main.insertAdjacentHTML('beforeend',`
   </div>
   <section class="auto-panel">
     <div class="auto-section-head"><div><h2>네이버에 올라간 글</h2><p>공개된 최근 글만 보여요. 비공개·임시저장 글은 네이버가 목록에 내주지 않아 나타나지 않습니다. 글별 조회수는 네이버가 블로그 주인에게만 보여 줘서 아직 표시하지 못해요.</p></div><label class="export-option"><input type="checkbox" id="naverUnlinkedOnly"> 연결 안 된 글만 보기</label><a id="naverBlogLink" class="naver-blog-link" href="https://blog.naver.com/" target="_blank" rel="noopener noreferrer">네이버 블로그 열기</a><button type="button" id="naverRefresh">새로고침</button></div>
+    <div class="naver-tabs" id="naverTabs" role="group" aria-label="분류별 보기" hidden></div>
     <div class="table-scroll"><table class="naver-table"><thead><tr><th>번호</th><th>썸네일</th><th class="title-col">제목</th><th>분류</th><th>발행 일시</th><th>댓글</th><th>공감</th><th>스튜디오 연결</th></tr></thead><tbody id="naverRows"></tbody></table></div>
   </section>
   <section class="auto-panel" id="naverStudioOnlyPanel" hidden><details><summary>스튜디오에는 있지만 네이버에서 찾지 못한 글 <b id="naverStudioOnlyCount"></b></summary><p class="naver-help">게시 예정·작성 완료·게시 완료·전달 완료 상태인데 네이버 글과 연결되지 않은 글이에요. 네이버에 아직 올리지 않았거나, 제목이 달라 연결하지 못했을 수 있어요. 글 편집 화면의 "참고 자료"에 네이버 글 주소를 넣으면 연결됩니다.</p><ul id="naverStudioOnlyList" class="naver-only-list"></ul></details></section>
@@ -243,7 +244,8 @@ const naverEscape=value=>String(value??'').replace(/[&<>"']/g,char=>({'&':'&amp;
 const naverKst=value=>value?new Intl.DateTimeFormat('sv-SE',{timeZone:'Asia/Seoul',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hour12:false}).format(new Date(value)):'-';
 const NAVER_STATUS={draft:'작성 중',scheduled:'게시 예정',completed:'작성 완료',published:'게시 완료',delivered:'전달 완료',private:'비공개'};
 const NAVER_MATCH={url:'출처 주소가 같아요',note:'메모에 적힌 네이버 제목이 같아요',title:'제목이 같아요',similar:'제목이 비슷해요'};
-let naverData=null;
+let naverData=null,naverCategory='';
+const NAVER_NO_CATEGORY='__none__',NAVER_CATEGORY_ORDER=['등기 가이드','실무 워크북','인사이트'];
 navs.naver.onclick=()=>showAutomation('naver');
 async function loadNaverPosts(force=false){
  const body=$('naverRows'),button=$('naverRefresh');
@@ -255,14 +257,23 @@ async function loadNaverPosts(force=false){
   if(!response.ok)throw new Error(data.error||'네이버 글 목록을 불러오지 못했습니다.');
   naverData=data;renderNaverPosts();
  }catch(error){
-  naverData=null;
+  naverData=null;$('naverTabs').hidden=true;
   body.innerHTML='<tr><td colspan="8" class="empty">'+naverEscape(error.message)+'<br><small>잠시 후 새로고침을 눌러 다시 시도해 주세요.</small></td></tr>';
   $('naverTotal').textContent='-';$('naverTotalCopy').textContent='불러오지 못했어요';$('naverLinked').textContent='-';$('naverUnlinked').textContent='-';$('naverLatest').textContent='-';$('naverVisitToday').textContent='-';$('naverVisitTotal').textContent='-';$('naverVisitTodayCopy').innerHTML='&nbsp;';$('naverVisitTotalCopy').innerHTML='&nbsp;';$('naverFetchedAt').textContent='';$('naverStudioOnlyPanel').hidden=true;
  }finally{button.disabled=false;}
 }
 function renderNaverPosts(){
  const data=naverData;if(!data)return;
- const {summary,posts,blog}=data,only=$('naverUnlinkedOnly').checked,visible=only?posts.filter(post=>!post.studio):posts;
+ const {summary,posts,blog}=data,only=$('naverUnlinkedOnly').checked,base=only?posts.filter(post=>!post.studio):posts;
+ // 분류별 탭: 알려진 분류는 정해진 순서로, 새 분류는 글에서 발견되는 대로 뒤에 붙는다. 숫자는 '연결 안 된 글만 보기' 선택도 반영한다.
+ const catOf=post=>post.category||NAVER_NO_CATEGORY,counts=new Map();
+ for(const post of base)counts.set(catOf(post),(counts.get(catOf(post))||0)+1);
+ for(const post of posts)if(!counts.has(catOf(post)))counts.set(catOf(post),0);
+ const cats=[...counts.keys()].sort((a,b)=>{const rank=name=>name===NAVER_NO_CATEGORY?999:(NAVER_CATEGORY_ORDER.indexOf(name)+1||500);return rank(a)-rank(b);});
+ if(naverCategory&&!counts.has(naverCategory))naverCategory='';
+ const tabs=$('naverTabs');tabs.hidden=cats.length<2;
+ tabs.innerHTML=[['','전체',base.length],...cats.map(name=>[name,name===NAVER_NO_CATEGORY?'분류 없음':name,counts.get(name)])].map(([key,label,n])=>'<button type="button" data-naver-category="'+naverEscape(key)+'" aria-pressed="'+(naverCategory===key)+'" class="'+(naverCategory===key?'active':'')+'">'+naverEscape(label)+' <b>'+n+'</b></button>').join('');
+ const visible=naverCategory?base.filter(post=>catOf(post)===naverCategory):base;
  $('naverBlogBadge').textContent=blog.id;$('naverBlogLink').href=blog.url;
  $('naverFetchedAt').textContent=naverKst(data.fetchedAt)+' 확인'+(data.statsError?' · '+data.statsError:'');
  $('naverTotal').textContent=summary.total;$('naverTotalCopy').textContent=summary.total?'최근 공개 글 기준':'공개된 글이 없어요';
@@ -276,7 +287,7 @@ function renderNaverPosts(){
   const studio=post.studio?'<div class="naver-studio"><button type="button" class="naver-open" data-open-studio="'+naverEscape(post.studio.slug)+'">'+naverEscape(post.studio.title)+'</button><span class="ops-chip '+(post.studio.status==='published'?'green':'blue')+'">'+naverEscape(NAVER_STATUS[post.studio.status]||post.studio.status)+'</span><small>'+naverEscape(NAVER_MATCH[post.studio.by]||'')+'</small></div>':'<span class="ops-chip amber">연결된 글 없음</span>';
   const tags=(post.tags||[]).slice(0,3).map(tag=>'<span class="tag">'+naverEscape(tag)+'</span>').join('');
   return '<tr><td>'+(visible.length-index)+'</td><td>'+thumb+'</td><td class="naver-title"><a href="'+naverEscape(post.url)+'" target="_blank" rel="noopener noreferrer">'+naverEscape(post.title)+'</a><div>'+tags+'</div></td><td>'+naverEscape(post.category||'-')+'</td><td>'+naverKst(post.publishedAt)+'</td><td>'+(post.comments==null?'-':post.comments)+'</td><td>'+(post.likes==null?'-':post.likes)+'</td><td class="naver-link-cell">'+studio+'</td></tr>';
- }).join(''):'<tr><td colspan="8" class="empty">'+(only?'연결되지 않은 글이 없어요. 모두 스튜디오 글과 연결되어 있습니다.':'네이버에 공개된 글이 없습니다.')+'</td></tr>';
+ }).join(''):'<tr><td colspan="8" class="empty">'+(only?(naverCategory?'이 분류에는 연결되지 않은 글이 없어요.':'연결되지 않은 글이 없어요. 모두 스튜디오 글과 연결되어 있습니다.'):(naverCategory?'이 분류에는 공개된 글이 없습니다.':'네이버에 공개된 글이 없습니다.'))+'</td></tr>';
  const studioOnly=data.studioOnly||[];
  $('naverStudioOnlyPanel').hidden=!studioOnly.length;$('naverStudioOnlyCount').textContent='('+studioOnly.length+'건)';
  $('naverStudioOnlyList').innerHTML=studioOnly.map(item=>'<li><button type="button" class="naver-open" data-open-studio="'+naverEscape(item.slug)+'">'+naverEscape(item.title)+'</button><small>'+naverEscape([item.category,NAVER_STATUS[item.status]||item.status].filter(Boolean).join(' · '))+'</small></li>').join('');
@@ -284,6 +295,8 @@ function renderNaverPosts(){
 $('naverRefresh').onclick=()=>loadNaverPosts(true);
 $('naverUnlinkedOnly').onchange=renderNaverPosts;
 $('naverPostsView').addEventListener('click',event=>{
+ const tab=event.target.closest('[data-naver-category]');
+ if(tab){naverCategory=tab.dataset.naverCategory;renderNaverPosts();return;}
  const open=event.target.closest('[data-open-studio]');if(!open)return;
  hideProjectViews();showProjectNavigation();activeSection='contents';activateNav('contents');
  document.dispatchEvent(new CustomEvent('qrator:open-record',{detail:open.dataset.openStudio}));

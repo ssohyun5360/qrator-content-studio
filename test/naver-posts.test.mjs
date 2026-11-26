@@ -239,4 +239,5 @@ test('화면: 사이드 메뉴·목록·연결 열기가 갖춰져 있다',async
  assert.match(ui,/rel="noopener noreferrer"/,'네이버 글 링크는 새 창, 오프너 차단');
  assert.match(ui,/연결 안 된 글만 보기/);
  assert.match(ui,/id="naverVisitToday"/);assert.match(ui,/id="naverVisitTotal"/);assert.match(ui,/<th>댓글<\/th><th>공감<\/th>/);assert.match(ui,/post\.comments==null/);
+ assert.match(ui,/id="naverTabs"/);assert.match(ui,/data-naver-category/);assert.match(ui,/NAVER_CATEGORY_ORDER=\['등기 가이드','실무 워크북','인사이트'\]/);
 });
