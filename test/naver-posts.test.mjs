@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 import {S3Client} from '@aws-sdk/client-s3';
-import {parseNaverRss,logNoOf,matchPostsToRecords,studioOnlyRecords,similarity,loadNaverPosts,resetNaverCache,blogIdFrom} from '../lib/naver.mjs';
+import {parseNaverRss,logNoOf,matchPostsToRecords,studioOnlyRecords,similarity,loadNaverPosts,resetNaverCache,blogIdFrom,parseBlogProfile,parsePostCounts,fetchNaverStats} from '../lib/naver.mjs';
 
 // 실제 네이버 RSS 와 같은 모양(CDATA 제목·guid·category·tag·pubDate·<img>)을 줄여 만든 샘플
 const RSS=`<?xml version="1.0" encoding="UTF-8"?>
@@ -65,6 +65,21 @@ test('글 번호는 여러 주소 모양에서 같게 읽는다',()=>{
  assert.equal(logNoOf('https://qrator.kr/blog/foo'),'');assert.equal(logNoOf(''),'');
 });
 
+const PROFILE=JSON.stringify({isSuccess:true,result:{blogId:'qrator_kr',dayVisitorCount:17,totalVisitorCount:1457,subscriberCount:2}});
+const LIST=JSON.stringify({isSuccess:true,result:{totalCount:0,items:[{logNo:224489694665,commentCnt:3,sympathyCnt:5,readCount:null},{logNo:224488571922,commentCnt:0,sympathyCnt:1}]}});
+// 네이버 세 곳(RSS·모바일 프로필·모바일 글 목록)을 흉내 낸다. opts 로 일부를 실패시킬 수 있다.
+const naverFake=(opts={})=>{
+ const seen=[];
+ const fn=async(url,init={})=>{
+  const u=String(url);seen.push(u);
+  if(u==='https://rss.blog.naver.com/qrator_kr.xml')return {ok:true,status:200,text:async()=>RSS};
+  if(u==='https://m.blog.naver.com/api/blogs/qrator_kr'){if(opts.noProfile)return {ok:false,status:403,text:async()=>''};return {ok:true,status:200,text:async()=>PROFILE};}
+  if(u.startsWith('https://m.blog.naver.com/api/blogs/qrator_kr/post-list?')){if(opts.noList)return {ok:false,status:403,text:async()=>''};return {ok:true,status:200,text:async()=>LIST};}
+  throw new Error('예상 밖 주소 '+u);
+ };
+ fn.seen=seen;return fn;
+};
+
 const POSTS=parseNaverRss(RSS,'qrator_kr').posts;
 const rec=(slug,extra={})=>({slug,title:'제목 '+slug,category:'임원 변경',status:'completed',reviewStatus:'pending',sourceUrls:[],note:'',...extra});
 
@@ -108,7 +123,7 @@ test('스튜디오에만 있는 글: 게시 준비가 끝난 글 중 네이버�
 
 test('불러오기: 1분 캐시, 새로고침도 10초 안에는 캐시, 네이버 오류는 안내 문구로 바꾼다',async()=>{
  resetNaverCache();let calls=0;
- const ok=async url=>{calls++;assert.equal(url,'https://rss.blog.naver.com/qrator_kr.xml');return {ok:true,status:200,text:async()=>RSS};};
+ const fake=naverFake();const ok=async(url,init)=>{if(String(url).includes('rss.blog.naver.com'))calls++;return fake(url,init);};
  const t0=1_700_000_000_000;
  const first=await loadNaverPosts('qrator_kr',{fetchImpl:ok,now:t0});assert.equal(first.cached,false);assert.equal(first.posts.length,3);assert.equal(first.fetchedAt,new Date(t0).toISOString());
  assert.equal((await loadNaverPosts('qrator_kr',{fetchImpl:ok,now:t0+30_000})).cached,true);
@@ -123,6 +138,50 @@ test('불러오기: 1분 캐시, 새로고침도 10초 안에는 캐시, 네이�
  await assert.rejects(()=>loadNaverPosts('qrator_kr',{fetchImpl:async()=>({ok:true,status:200,text:async()=>'<html>차단</html>'})}),/RSS 형식/);
  assert.equal(blogIdFrom({}),'qrator_kr');assert.equal(blogIdFrom({NAVER_BLOG_ID:'my-blog_1'}),'my-blog_1');
  assert.throws(()=>blogIdFrom({NAVER_BLOG_ID:'../evil'}),{status:503});
+});
+
+test('방문자·댓글·공감: 프로필과 글 목록 JSON 을 읽어 글마다 붙인다(조회수는 없음)',async()=>{
+ assert.deepEqual(parseBlogProfile(JSON.parse(PROFILE)),{today:17,total:1457,subscribers:2});
+ assert.throws(()=>parseBlogProfile({isSuccess:false}),/방문자/);
+ assert.throws(()=>parseBlogProfile({isSuccess:true,result:{}}),/방문자/);
+ const parsed=parsePostCounts(JSON.parse(LIST));
+ assert.deepEqual([...parsed.items],[['224489694665',{comments:3,likes:5}],['224488571922',{comments:0,likes:1}]]);
+ assert.throws(()=>parsePostCounts({isSuccess:true,result:{}}),/글별/);
+ resetNaverCache();
+ const fake=naverFake();
+ const data=await loadNaverPosts('qrator_kr',{fetchImpl:fake,now:1_700_000_000_000});
+ assert.deepEqual(data.visitors,{today:17,total:1457,subscribers:2});assert.equal(data.statsError,null);
+ const byId=Object.fromEntries(data.posts.map(p=>[p.id,p]));
+ assert.deepEqual([byId['224489694665'].comments,byId['224489694665'].likes],[3,5]);
+ assert.deepEqual([byId['224488571922'].comments,byId['224488571922'].likes],[0,1]);
+ assert.deepEqual([byId['224483496468'].comments,byId['224483496468'].likes],[null,null],'글 목록에 없는 글은 빈칸');
+ assert.ok(data.posts.every(p=>!('views' in p)&&!('readCount' in p)),'조회수는 공개되지 않으므로 넣지 않는다');
+ assert.equal(fake.seen.filter(u=>u.includes('post-list')).length,1,'한 쪽이 30건보다 적으면 더 부르지 않는다');
+ assert.ok(fake.seen.every(u=>u.startsWith('https://')&&!/token|cookie/i.test(u)));
+});
+
+test('방문자·댓글·공감을 못 읽어도 글 목록은 그대로 보여 주고 이유만 알린다',async()=>{
+ resetNaverCache();
+ const noProfile=await loadNaverPosts('qrator_kr',{fetchImpl:naverFake({noProfile:true}),now:1});
+ assert.equal(noProfile.posts.length,3);assert.equal(noProfile.visitors,null);assert.match(noProfile.statsError,/방문자 수/);
+ assert.equal(noProfile.posts[0].comments,3);
+ resetNaverCache();
+ const noList=await loadNaverPosts('qrator_kr',{fetchImpl:naverFake({noList:true}),now:1});
+ assert.equal(noList.visitors.total,1457);assert.match(noList.statsError,/댓글·공감/);assert.equal(noList.posts[0].comments,null);
+ resetNaverCache();
+ const both=await fetchNaverStats('qrator_kr',{fetchImpl:async()=>{throw new Error('boom');}});
+ assert.deepEqual([both.visitors,both.counts],[null,null]);assert.match(both.error,/방문자 수·글별/);
+ // 글 목록(RSS) 자체를 못 읽으면 지금처럼 오류
+ await assert.rejects(()=>loadNaverPosts('qrator_kr',{fetchImpl:async url=>String(url).includes('rss')?{ok:false,status:503,text:async()=>''}:naverFake()(url),now:1}),e=>e.status===502);
+ resetNaverCache();
+});
+
+test('글 목록이 30건이면 다음 쪽도 읽는다(최대 4쪽)',async()=>{
+ const page=n=>JSON.stringify({isSuccess:true,result:{items:Array.from({length:30},(_,i)=>({logNo:224400000000+n*100+i,commentCnt:1,sympathyCnt:0}))}});
+ const urls=[];
+ const fetchImpl=async url=>{const u=String(url);urls.push(u);if(u.includes('post-list')){const n=Number(u.match(/page=(\d+)/)[1]);return {ok:true,status:200,text:async()=>page(n)};}return {ok:true,status:200,text:async()=>PROFILE};};
+ const stats=await fetchNaverStats('qrator_kr',{fetchImpl});
+ assert.equal(urls.filter(u=>u.includes('post-list')).length,4);assert.equal(stats.counts.size,120);
 });
 
 // ── API ──
@@ -148,7 +207,7 @@ test('API: 로그인한 팀원에게만, 네이버 글과 스튜디오 글을 �
  put(rec('linked-post',{title:'홈페이지용 제목',sourceUrls:['https://blog.naver.com/qrator_kr/224489694665']}));
  put(rec('only-home',{status:'published',title:'네이버에 없는 글',updatedAt:'2026-11-21T00:00:00Z'}));
  const realFetch=globalThis.fetch;let hits=0;
- globalThis.fetch=async(url)=>{hits++;assert.match(String(url),/rss\.blog\.naver\.com\/qrator_kr\.xml$/);return {ok:true,status:200,text:async()=>RSS};};
+ const fake=naverFake();globalThis.fetch=async(url,init)=>{if(/rss\.blog\.naver\.com/.test(String(url)))hits++;return fake(url,init);};
  try{
   assert.equal((await call({cookie:false})).statusCode,401);
   assert.equal(hits,0,'로그인 전에는 네이버에 요청하지 않는다');
@@ -159,6 +218,8 @@ test('API: 로그인한 팀원에게만, 네이버 글과 스튜디오 글을 �
   assert.equal(res.body.posts[0].studio.slug,'linked-post');assert.equal(res.body.posts[1].studio,null);
   assert.deepEqual(res.body.studioOnly.map(x=>x.slug),['only-home']);
   assert.equal(res.body.blog.id,'qrator_kr');assert.ok(res.body.fetchedAt);
+  assert.deepEqual(res.body.visitors,{today:17,total:1457,subscribers:2});assert.equal(res.body.statsError,null);
+  assert.deepEqual([res.body.posts[0].comments,res.body.posts[0].likes],[3,5]);
   assert.equal((await call()).body.cached,true);assert.equal(hits,1);
   // 네이버가 막혔을 때: 502 와 이유
   resetNaverCache();globalThis.fetch=async()=>({ok:false,status:403,text:async()=>''});
@@ -177,4 +238,5 @@ test('화면: 사이드 메뉴·목록·연결 열기가 갖춰져 있다',async
  assert.match(ui,/data-open-studio/);assert.match(ui,/qrator:open-record/);assert.match(app,/qrator:open-record/);
  assert.match(ui,/rel="noopener noreferrer"/,'네이버 글 링크는 새 창, 오프너 차단');
  assert.match(ui,/연결 안 된 글만 보기/);
+ assert.match(ui,/id="naverVisitToday"/);assert.match(ui,/id="naverVisitTotal"/);assert.match(ui,/<th>댓글<\/th><th>공감<\/th>/);assert.match(ui,/post\.comments==null/);
 });

@@ -19,7 +19,7 @@ export default async function handler(req,res){
   const posts=matchPostsToRecords(naver.posts,records);
   const latest=posts.map(p=>p.publishedAt).filter(Boolean).sort().at(-1)||null;
   return send(200,{
-   blog:naver.blog,fetchedAt:naver.fetchedAt,cached:naver.cached,
+   blog:naver.blog,fetchedAt:naver.fetchedAt,cached:naver.cached,visitors:naver.visitors,statsError:naver.statsError,
    summary:{total:posts.length,linked:posts.filter(p=>p.studio).length,unlinked:posts.filter(p=>!p.studio).length,latestAt:latest,studioCompared:records.length>0},
    posts,
    studioOnly:studioOnlyRecords(posts,records)

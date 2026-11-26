@@ -95,10 +95,12 @@ main.insertAdjacentHTML('beforeend',`
     <div class="ops-summary-card green"><span>스튜디오와 연결됨</span><strong id="naverLinked">-</strong><small>같은 글로 확인된 수</small></div>
     <div class="ops-summary-card amber"><span>연결 안 된 글</span><strong id="naverUnlinked">-</strong><small>스튜디오에서 찾지 못한 글</small></div>
     <div class="ops-summary-card"><span>가장 최근 발행</span><strong id="naverLatest" class="naver-latest">-</strong><small id="naverLatestCopy">&nbsp;</small></div>
+    <div class="ops-summary-card"><span>오늘 방문자</span><strong id="naverVisitToday">-</strong><small id="naverVisitTodayCopy">&nbsp;</small></div>
+    <div class="ops-summary-card"><span>누적 방문자</span><strong id="naverVisitTotal">-</strong><small id="naverVisitTotalCopy">&nbsp;</small></div>
   </div>
   <section class="auto-panel">
-    <div class="auto-section-head"><div><h2>네이버에 올라간 글</h2><p>공개된 최근 글만 보여요. 비공개·임시저장 글은 네이버가 목록에 내주지 않아 나타나지 않습니다.</p></div><label class="export-option"><input type="checkbox" id="naverUnlinkedOnly"> 연결 안 된 글만 보기</label><a id="naverBlogLink" class="naver-blog-link" href="https://blog.naver.com/" target="_blank" rel="noopener noreferrer">네이버 블로그 열기</a><button type="button" id="naverRefresh">새로고침</button></div>
-    <div class="table-scroll"><table class="naver-table"><thead><tr><th>번호</th><th>썸네일</th><th class="title-col">제목</th><th>분류</th><th>발행 일시</th><th>스튜디오 연결</th></tr></thead><tbody id="naverRows"></tbody></table></div>
+    <div class="auto-section-head"><div><h2>네이버에 올라간 글</h2><p>공개된 최근 글만 보여요. 비공개·임시저장 글은 네이버가 목록에 내주지 않아 나타나지 않습니다. 글별 조회수는 네이버가 블로그 주인에게만 보여 줘서 아직 표시하지 못해요.</p></div><label class="export-option"><input type="checkbox" id="naverUnlinkedOnly"> 연결 안 된 글만 보기</label><a id="naverBlogLink" class="naver-blog-link" href="https://blog.naver.com/" target="_blank" rel="noopener noreferrer">네이버 블로그 열기</a><button type="button" id="naverRefresh">새로고침</button></div>
+    <div class="table-scroll"><table class="naver-table"><thead><tr><th>번호</th><th>썸네일</th><th class="title-col">제목</th><th>분류</th><th>발행 일시</th><th>댓글</th><th>공감</th><th>스튜디오 연결</th></tr></thead><tbody id="naverRows"></tbody></table></div>
   </section>
   <section class="auto-panel" id="naverStudioOnlyPanel" hidden><details><summary>스튜디오에는 있지만 네이버에서 찾지 못한 글 <b id="naverStudioOnlyCount"></b></summary><p class="naver-help">게시 예정·작성 완료·게시 완료·전달 완료 상태인데 네이버 글과 연결되지 않은 글이에요. 네이버에 아직 올리지 않았거나, 제목이 달라 연결하지 못했을 수 있어요. 글 편집 화면의 "참고 자료"에 네이버 글 주소를 넣으면 연결됩니다.</p><ul id="naverStudioOnlyList" class="naver-only-list"></ul></details></section>
 </section>`);
@@ -245,7 +247,7 @@ let naverData=null;
 navs.naver.onclick=()=>showAutomation('naver');
 async function loadNaverPosts(force=false){
  const body=$('naverRows'),button=$('naverRefresh');
- body.innerHTML='<tr><td colspan="6" class="empty">네이버에서 글 목록을 불러오는 중입니다.</td></tr>';
+ body.innerHTML='<tr><td colspan="8" class="empty">네이버에서 글 목록을 불러오는 중입니다.</td></tr>';
  button.disabled=true;
  try{
   const response=await fetch('/api/naver-posts'+(force?'?refresh=1':''),{credentials:'same-origin'});
@@ -254,24 +256,27 @@ async function loadNaverPosts(force=false){
   naverData=data;renderNaverPosts();
  }catch(error){
   naverData=null;
-  body.innerHTML='<tr><td colspan="6" class="empty">'+naverEscape(error.message)+'<br><small>잠시 후 새로고침을 눌러 다시 시도해 주세요.</small></td></tr>';
-  $('naverTotal').textContent='-';$('naverTotalCopy').textContent='불러오지 못했어요';$('naverLinked').textContent='-';$('naverUnlinked').textContent='-';$('naverLatest').textContent='-';$('naverFetchedAt').textContent='';$('naverStudioOnlyPanel').hidden=true;
+  body.innerHTML='<tr><td colspan="8" class="empty">'+naverEscape(error.message)+'<br><small>잠시 후 새로고침을 눌러 다시 시도해 주세요.</small></td></tr>';
+  $('naverTotal').textContent='-';$('naverTotalCopy').textContent='불러오지 못했어요';$('naverLinked').textContent='-';$('naverUnlinked').textContent='-';$('naverLatest').textContent='-';$('naverVisitToday').textContent='-';$('naverVisitTotal').textContent='-';$('naverVisitTodayCopy').innerHTML='&nbsp;';$('naverVisitTotalCopy').innerHTML='&nbsp;';$('naverFetchedAt').textContent='';$('naverStudioOnlyPanel').hidden=true;
  }finally{button.disabled=false;}
 }
 function renderNaverPosts(){
  const data=naverData;if(!data)return;
  const {summary,posts,blog}=data,only=$('naverUnlinkedOnly').checked,visible=only?posts.filter(post=>!post.studio):posts;
  $('naverBlogBadge').textContent=blog.id;$('naverBlogLink').href=blog.url;
- $('naverFetchedAt').textContent=naverKst(data.fetchedAt)+' 확인';
+ $('naverFetchedAt').textContent=naverKst(data.fetchedAt)+' 확인'+(data.statsError?' · '+data.statsError:'');
  $('naverTotal').textContent=summary.total;$('naverTotalCopy').textContent=summary.total?'최근 공개 글 기준':'공개된 글이 없어요';
  $('naverLinked').textContent=summary.studioCompared?summary.linked:'-';$('naverUnlinked').textContent=summary.studioCompared?summary.unlinked:'-';
+ const visitors=data.visitors,nv=value=>value==null?'-':Number(value).toLocaleString('ko-KR');
+ $('naverVisitToday').textContent=nv(visitors&&visitors.today);$('naverVisitTotal').textContent=nv(visitors&&visitors.total);
+ $('naverVisitTodayCopy').textContent=visitors?'네이버 블로그 기준':'불러오지 못했어요';$('naverVisitTotalCopy').textContent=visitors?(visitors.subscribers?'구독자 '+nv(visitors.subscribers)+'명':'블로그 전체 합계'):'불러오지 못했어요';
  $('naverLatest').textContent=summary.latestAt?naverKst(summary.latestAt).slice(0,10):'-';$('naverLatestCopy').textContent=summary.latestAt?naverKst(summary.latestAt).slice(11)+' 발행':' ';
  $('naverRows').innerHTML=visible.length?visible.map((post,index)=>{
   const thumb=post.thumbnail?'<span class="thumb-frame naver-thumb"><img class="thumb-image" loading="lazy" referrerpolicy="no-referrer" src="'+naverEscape(post.thumbnail)+'" alt=""></span>':'<span class="thumb naver-thumb">-</span>';
   const studio=post.studio?'<div class="naver-studio"><button type="button" class="naver-open" data-open-studio="'+naverEscape(post.studio.slug)+'">'+naverEscape(post.studio.title)+'</button><span class="ops-chip '+(post.studio.status==='published'?'green':'blue')+'">'+naverEscape(NAVER_STATUS[post.studio.status]||post.studio.status)+'</span><small>'+naverEscape(NAVER_MATCH[post.studio.by]||'')+'</small></div>':'<span class="ops-chip amber">연결된 글 없음</span>';
   const tags=(post.tags||[]).slice(0,3).map(tag=>'<span class="tag">'+naverEscape(tag)+'</span>').join('');
-  return '<tr><td>'+(visible.length-index)+'</td><td>'+thumb+'</td><td class="naver-title"><a href="'+naverEscape(post.url)+'" target="_blank" rel="noopener noreferrer">'+naverEscape(post.title)+'</a><div>'+tags+'</div></td><td>'+naverEscape(post.category||'-')+'</td><td>'+naverKst(post.publishedAt)+'</td><td class="naver-link-cell">'+studio+'</td></tr>';
- }).join(''):'<tr><td colspan="6" class="empty">'+(only?'연결되지 않은 글이 없어요. 모두 스튜디오 글과 연결되어 있습니다.':'네이버에 공개된 글이 없습니다.')+'</td></tr>';
+  return '<tr><td>'+(visible.length-index)+'</td><td>'+thumb+'</td><td class="naver-title"><a href="'+naverEscape(post.url)+'" target="_blank" rel="noopener noreferrer">'+naverEscape(post.title)+'</a><div>'+tags+'</div></td><td>'+naverEscape(post.category||'-')+'</td><td>'+naverKst(post.publishedAt)+'</td><td>'+(post.comments==null?'-':post.comments)+'</td><td>'+(post.likes==null?'-':post.likes)+'</td><td class="naver-link-cell">'+studio+'</td></tr>';
+ }).join(''):'<tr><td colspan="8" class="empty">'+(only?'연결되지 않은 글이 없어요. 모두 스튜디오 글과 연결되어 있습니다.':'네이버에 공개된 글이 없습니다.')+'</td></tr>';
  const studioOnly=data.studioOnly||[];
  $('naverStudioOnlyPanel').hidden=!studioOnly.length;$('naverStudioOnlyCount').textContent='('+studioOnly.length+'건)';
  $('naverStudioOnlyList').innerHTML=studioOnly.map(item=>'<li><button type="button" class="naver-open" data-open-studio="'+naverEscape(item.slug)+'">'+naverEscape(item.title)+'</button><small>'+naverEscape([item.category,NAVER_STATUS[item.status]||item.status].filter(Boolean).join(' · '))+'</small></li>').join('');
