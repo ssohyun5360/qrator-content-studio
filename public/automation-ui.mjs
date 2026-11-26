@@ -209,9 +209,15 @@ async function refreshDashboardInsights(){
   const cutoff=Date.now()-30*86400000,counts=Object.fromEntries(GUIDE_CATEGORIES.map(name=>[name,0]));
   records.filter(record=>(!record.contentType||record.contentType==='guide')&&Number.isFinite(Date.parse(record.createdAt))&&Date.parse(record.createdAt)>=cutoff).forEach(record=>{const category=GUIDE_CATEGORIES.find(name=>String(record.category||'').startsWith(name));if(category)counts[category]++;});
   const written=GUIDE_CATEGORIES.filter(name=>counts[name]>0).sort((a,b)=>counts[b]-counts[a]||GUIDE_CATEGORIES.indexOf(a)-GUIDE_CATEGORIES.indexOf(b));
-  top.innerHTML=written.length?written.slice(0,3).map((name,index)=>`<span><b>${index+1}</b>${name} <strong>${counts[name]}건</strong></span>`).join(''):'최근 30일 등기가이드 작성 기록이 없어요.';
-  const candidate=written.length?GUIDE_CATEGORIES.reduce((best,name)=>counts[name]<counts[best]?name:best,GUIDE_CATEGORIES[0]):null;
-  reason.innerHTML=candidate?`<strong>다음 후보 · ${candidate}</strong> 최근 30일 ${counts[candidate]}건 작성했어요. 생성 전에 기존 글과 중복 여부를 확인하세요.`:'글이 쌓이면 작성 빈도를 바탕으로 다음 카테고리를 제안해요.';
+  const total=GUIDE_CATEGORIES.reduce((sum,name)=>sum+counts[name],0);
+  const maxCount=written.length?counts[written[0]]:0;
+  top.innerHTML=written.length?`<ol class="ops-topic-bars">${written.slice(0,3).map((name,index)=>{
+   const percent=Math.round(counts[name]/total*100);
+   const barWidth=Math.round(counts[name]/maxCount*100);
+   return `<li><div class="ops-topic-label"><span><b>${index+1}.</b> ${name}</span><strong>${counts[name]}건 (${percent}%)</strong></div><div class="ops-topic-track" aria-hidden="true"><span style="width:${barWidth}%"></span></div></li>`;
+  }).join('')}</ol>`:'최근 30일 등기가이드 작성 기록이 없어요.';
+  const candidate=written.length?GUIDE_CATEGORIES.reduce((best,name)=>counts[name]<counts[best]||(counts[name]===counts[best]&&GUIDE_CATEGORIES.indexOf(name)>GUIDE_CATEGORIES.indexOf(best))?name:best,GUIDE_CATEGORIES[0]):null;
+  reason.innerHTML=candidate?`<strong>다음 후보: ${candidate}</strong> (최근 30일 동안 ${counts[candidate]}건 작성)`:'글이 쌓이면 작성 빈도를 바탕으로 다음 카테고리를 제안해요.';
   action.disabled=!candidate;action.textContent=candidate?`${candidate} 글 생성하기 →`:'주제 추천 준비 중';action.dataset.category=candidate||'';
  }else{home.textContent='-';top.textContent='콘텐츠 목록을 불러오지 못했어요.';reason.textContent='잠시 후 대시보드를 다시 열어 주세요.';action.disabled=true;}
  if(naverResult.status==='fulfilled'){
