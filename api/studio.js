@@ -3,6 +3,7 @@ import {authenticated,session,equal,fail,slug,validate,nextRecord,summary,thumbn
 import {read,write,list,remove,removePrefix} from '../lib/storage.mjs';
 import {loadTagDict,normalizeRecordTags,retagAll} from '../lib/tags-store.mjs';
 import {topicLabels,tagGroups} from '../lib/tags.mjs';
+import {normalizePalettes,isHexColor,DEFAULT_PALETTES} from '../public/thumbnail-palettes.mjs';
 export default async function handler(req,res){
  res.setHeader('Cache-Control','private, no-store');res.setHeader('X-Content-Type-Options','nosniff');
  const env=process.env;const op=String(req.query?.op||'');
@@ -36,16 +37,22 @@ export default async function handler(req,res){
   }
   if(op==='retagAll')return send(200,await retagAll({dryRun:body.dryRun!==false}));
   if(op==='getSettings'){
-   const saved=await read('studio/settings/automation.json');return send(200,{settings:saved?.value||null});
+   const saved=await read('studio/settings/automation.json');return send(200,{settings:saved?{...saved.value,thumbnailPalettes:normalizePalettes(saved.value.thumbnailPalettes)}:null});
   }
   if(op==='saveSettings'){
    const writingRules=String(body.settings?.writingRules||'').trim();
    if(writingRules.length<10)fail(400,'작성 규칙을 10자 이상 입력해 주세요.');
    if(writingRules.length>20000)fail(400,'작성 규칙은 20,000자까지 저장할 수 있습니다.');
-   const key='studio/settings/automation.json';const current=await read(key);
+   const supplied=body.settings?.thumbnailPalettes;
+    if(supplied){if(!Array.isArray(supplied.sets)||supplied.sets.length>17||!supplied.types||typeof supplied.types!=='object')fail(400,'대표 이미지 색상 세트를 확인해 주세요.');
+     if(supplied.sets.some(s=>!s||typeof s.id!=='string'||typeof s.name!=='string'||s.name.length>20||!isHexColor(s.main)))fail(400,'색상 세트 이름과 메인 색상을 확인해 주세요.');
+     if(DEFAULT_PALETTES.some(p=>!supplied.sets.some(s=>s.id===p.id)))fail(400,'기본 색상 세트를 유지해 주세요.');
+     if(['guide','insight','workbook'].some(t=>!supplied.sets.some(s=>s.id===supplied.types[t])))fail(400,'콘텐츠 유형별 색상 세트를 선택해 주세요.');}
+    const key='studio/settings/automation.json';const current=await read(key);
    if(current&&body.expectedRevision!==current.value.revision)fail(409,'다른 팀원이 작성 규칙을 수정했습니다. 새로고침 후 다시 시도해 주세요.');
    const versionNumber=(Number(current?.value?.versionNumber)||1)+1;const updatedAt=new Date().toISOString();
-   const next={writingRules,versionNumber,ruleVersion:'v1.'+versionNumber,updatedAt,revision:createHash('sha256').update(writingRules+updatedAt).digest('hex').slice(0,20)};
+   const thumbnailPalettes=normalizePalettes(supplied||current?.value?.thumbnailPalettes);
+    const next={writingRules,thumbnailPalettes,versionNumber,ruleVersion:'v1.'+versionNumber,updatedAt,revision:createHash('sha256').update(writingRules+JSON.stringify(thumbnailPalettes)+updatedAt).digest('hex').slice(0,20)};
    await write(key,next,current?.etag);return send(200,{settings:next});
   }
   if(op==='getHomeqSettings'){
